@@ -37,6 +37,9 @@ class CardCreator {
         this.dragOffset = { x: 0, y: 0 };
         this.snapToGrid = true;
         this.gridSize = 10;
+        this.undoStack = [];
+        this.redoStack = [];
+        this.maxUndoSteps = 50;
         
         this.init();
     }
@@ -151,6 +154,45 @@ class CardCreator {
             this.alignElement('right');
         });
 
+        // Undo/Redo
+        document.getElementById('undo').addEventListener('click', () => {
+            this.undo();
+        });
+
+        document.getElementById('redo').addEventListener('click', () => {
+            this.redo();
+        });
+
+        // Project Management
+        document.getElementById('save-project').addEventListener('click', () => {
+            this.saveProject();
+        });
+
+        document.getElementById('load-project').addEventListener('click', () => {
+            this.loadProject();
+        });
+
+        document.getElementById('file-input').addEventListener('change', (e) => {
+            this.handleFileLoad(e);
+        });
+
+        // Export Options
+        document.getElementById('export-png').addEventListener('click', () => {
+            this.exportAsPNG();
+        });
+
+        document.getElementById('export-svg').addEventListener('click', () => {
+            this.exportAsSVG();
+        });
+
+        document.getElementById('download-word').addEventListener('click', () => {
+            this.exportAsWord();
+        });
+
+        document.getElementById('download-images').addEventListener('click', () => {
+            this.exportAsImages();
+        });
+
         // Navigation
         document.getElementById('back-to-setup').addEventListener('click', () => {
             this.showStep('project-setup');
@@ -206,6 +248,15 @@ class CardCreator {
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             this.handleKeyDown(e);
+        });
+
+        // Modal events
+        document.getElementById('modal-cancel').addEventListener('click', () => {
+            this.hideModal();
+        });
+
+        document.getElementById('modal-confirm').addEventListener('click', () => {
+            this.handleModalConfirm();
         });
     }
 
@@ -280,6 +331,37 @@ class CardCreator {
                 back: {
                     textFields: [
                         { x: 20, y: 50, width: 160, height: 40, fontSize: 18, fontFamily: 'Arial', fontWeight: 'normal', textAlign: 'center', color: '#0c5460', placeholder: 'English' }
+                    ],
+                    imageFields: []
+                }
+            },
+            math: {
+                front: {
+                    textFields: [
+                        { x: 20, y: 30, width: 160, height: 40, fontSize: 24, fontFamily: 'Arial', fontWeight: 'bold', textAlign: 'center', color: '#004085', placeholder: '2 + 2 = ?' }
+                    ],
+                    imageFields: []
+                },
+                back: {
+                    textFields: [
+                        { x: 20, y: 50, width: 160, height: 40, fontSize: 32, fontFamily: 'Arial', fontWeight: 'bold', textAlign: 'center', color: '#28a745', placeholder: '4' }
+                    ],
+                    imageFields: []
+                }
+            },
+            timeline: {
+                front: {
+                    textFields: [
+                        { x: 20, y: 20, width: 160, height: 25, fontSize: 14, fontFamily: 'Arial', fontWeight: 'bold', textAlign: 'center', color: '#000000', placeholder: 'Ereignis' },
+                        { x: 20, y: 50, width: 160, height: 20, fontSize: 16, fontFamily: 'Arial', fontWeight: 'normal', textAlign: 'center', color: '#6c757d', placeholder: 'Datum' }
+                    ],
+                    imageFields: [
+                        { x: 60, y: 80, width: 80, height: 60, alignment: 'center', placeholder: 'Bild', imageData: null, maintainAspectRatio: true }
+                    ]
+                },
+                back: {
+                    textFields: [
+                        { x: 20, y: 30, width: 160, height: 80, fontSize: 12, fontFamily: 'Arial', fontWeight: 'normal', textAlign: 'left', color: '#000000', placeholder: 'Beschreibung des historischen Ereignisses...' }
                     ],
                     imageFields: []
                 }
@@ -369,6 +451,8 @@ class CardCreator {
     }
 
     addTextField() {
+        this.saveState(); // Save state before modification
+        
         const sideData = this.project.masterCard[this.currentSide];
         const newField = {
             x: 50,
@@ -378,9 +462,18 @@ class CardCreator {
             fontSize: 16,
             fontFamily: 'Arial',
             fontWeight: 'normal',
+            fontStyle: 'normal',
+            textDecoration: 'none',
             textAlign: 'left',
             color: '#000000',
-            placeholder: 'Textinhalt'
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+            borderColor: '#000000',
+            borderStyle: 'solid',
+            placeholder: 'Textinhalt',
+            rotation: 0,
+            opacity: 1,
+            zIndex: sideData.textFields.length
         };
         
         sideData.textFields.push(newField);
@@ -389,6 +482,8 @@ class CardCreator {
     }
 
     addImageField() {
+        this.saveState(); // Save state before modification
+        
         const sideData = this.project.masterCard[this.currentSide];
         const newField = {
             x: 50,
@@ -398,7 +493,14 @@ class CardCreator {
             alignment: 'center',
             placeholder: 'Bild',
             imageData: null,
-            maintainAspectRatio: true
+            maintainAspectRatio: true,
+            rotation: 0,
+            opacity: 1,
+            borderWidth: 0,
+            borderColor: '#000000',
+            borderStyle: 'solid',
+            borderRadius: 0,
+            zIndex: sideData.imageFields.length
         };
         
         sideData.imageFields.push(newField);
@@ -521,52 +623,151 @@ class CardCreator {
     }
 
     drawTextField(field) {
+        this.ctx.save();
+        
+        // Apply transformations
+        if (field.rotation) {
+            this.ctx.translate(field.x + field.width / 2, field.y + field.height / 2);
+            this.ctx.rotate((field.rotation * Math.PI) / 180);
+            this.ctx.translate(-field.width / 2, -field.height / 2);
+        } else {
+            this.ctx.translate(field.x, field.y);
+        }
+        
+        this.ctx.globalAlpha = field.opacity || 1;
+        
+        // Draw background if not transparent
+        if (field.backgroundColor && field.backgroundColor !== 'transparent') {
+            this.ctx.fillStyle = field.backgroundColor;
+            this.ctx.fillRect(0, 0, field.width, field.height);
+        }
+        
+        // Draw border if specified
+        if (field.borderWidth && field.borderWidth > 0) {
+            this.ctx.strokeStyle = field.borderColor || '#000000';
+            this.ctx.lineWidth = field.borderWidth;
+            this.ctx.strokeRect(0, 0, field.width, field.height);
+        }
+        
+        // Set text style
         this.ctx.fillStyle = field.color;
-        this.ctx.font = `${field.fontWeight} ${field.fontSize}px ${field.fontFamily}`;
+        let fontStyle = '';
+        if (field.fontStyle === 'italic') fontStyle += 'italic ';
+        if (field.fontWeight === 'bold') fontStyle += 'bold ';
+        this.ctx.font = `${fontStyle}${field.fontSize}px ${field.fontFamily}`;
         this.ctx.textAlign = field.textAlign;
         
-        const x = field.textAlign === 'center' ? field.x + field.width / 2 : 
-                  field.textAlign === 'right' ? field.x + field.width : field.x;
+        const x = field.textAlign === 'center' ? field.width / 2 : 
+                  field.textAlign === 'right' ? field.width : 0;
         
-        this.ctx.fillText(field.placeholder, x, field.y + field.fontSize);
+        this.ctx.fillText(field.placeholder, x, field.fontSize);
         
-        // Draw field border for preview
+        // Draw underline if specified
+        if (field.textDecoration === 'underline') {
+            const textWidth = this.ctx.measureText(field.placeholder).width;
+            this.ctx.strokeStyle = field.color;
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - (field.textAlign === 'center' ? textWidth/2 : 0), field.fontSize + 2);
+            this.ctx.lineTo(x + (field.textAlign === 'center' ? textWidth/2 : field.textAlign === 'right' ? 0 : textWidth), field.fontSize + 2);
+            this.ctx.stroke();
+        }
+        
+        this.ctx.restore();
+        
+        // Draw selection border and handles
         const isSelected = this.selectedElement && 
                           this.selectedElement.type === 'text' && 
                           this.selectedElement.index === this.getCurrentFieldIndex(field, 'text');
         
-        this.ctx.strokeStyle = isSelected ? '#667eea' : 'rgba(102, 126, 234, 0.3)';
-        this.ctx.lineWidth = isSelected ? 2 : 1;
-        this.ctx.strokeRect(field.x, field.y, field.width, field.height);
-        
-        // Draw selection handles if selected
         if (isSelected) {
+            this.ctx.strokeStyle = '#667eea';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeRect(field.x, field.y, field.width, field.height);
             this.drawSelectionHandles(field);
+        } else {
+            this.ctx.strokeStyle = 'rgba(102, 126, 234, 0.3)';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(field.x, field.y, field.width, field.height);
         }
     }
 
     drawImageField(field) {
-        // Draw placeholder rectangle
-        this.ctx.fillStyle = '#f8f9fa';
-        this.ctx.fillRect(field.x, field.y, field.width, field.height);
+        this.ctx.save();
         
+        // Apply transformations
+        if (field.rotation) {
+            this.ctx.translate(field.x + field.width / 2, field.y + field.height / 2);
+            this.ctx.rotate((field.rotation * Math.PI) / 180);
+            this.ctx.translate(-field.width / 2, -field.height / 2);
+        } else {
+            this.ctx.translate(field.x, field.y);
+        }
+        
+        this.ctx.globalAlpha = field.opacity || 1;
+        
+        // Draw image or placeholder
+        if (field.imageData && field.imageData.dataUrl) {
+            const img = new Image();
+            img.onload = () => {
+                // Apply border radius if specified
+                if (field.borderRadius && field.borderRadius > 0) {
+                    this.ctx.beginPath();
+                    this.ctx.roundRect(0, 0, field.width, field.height, field.borderRadius);
+                    this.ctx.clip();
+                }
+                
+                this.ctx.drawImage(img, 0, 0, field.width, field.height);
+            };
+            img.src = field.imageData.dataUrl;
+        } else {
+            // Draw placeholder rectangle
+            this.ctx.fillStyle = '#f8f9fa';
+            
+            if (field.borderRadius && field.borderRadius > 0) {
+                this.ctx.beginPath();
+                this.ctx.roundRect(0, 0, field.width, field.height, field.borderRadius);
+                this.ctx.fill();
+            } else {
+                this.ctx.fillRect(0, 0, field.width, field.height);
+            }
+            
+            // Draw placeholder text
+            this.ctx.fillStyle = '#6c757d';
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(field.placeholder, field.width / 2, field.height / 2 + 4);
+        }
+        
+        // Draw border if specified
+        if (field.borderWidth && field.borderWidth > 0) {
+            this.ctx.strokeStyle = field.borderColor || '#000000';
+            this.ctx.lineWidth = field.borderWidth;
+            if (field.borderRadius && field.borderRadius > 0) {
+                this.ctx.beginPath();
+                this.ctx.roundRect(0, 0, field.width, field.height, field.borderRadius);
+                this.ctx.stroke();
+            } else {
+                this.ctx.strokeRect(0, 0, field.width, field.height);
+            }
+        }
+        
+        this.ctx.restore();
+        
+        // Draw selection border and handles
         const isSelected = this.selectedElement && 
                           this.selectedElement.type === 'image' && 
                           this.selectedElement.index === this.getCurrentFieldIndex(field, 'image');
         
-        this.ctx.strokeStyle = isSelected ? '#667eea' : 'rgba(102, 126, 234, 0.3)';
-        this.ctx.lineWidth = isSelected ? 2 : 1;
-        this.ctx.strokeRect(field.x, field.y, field.width, field.height);
-        
-        // Draw placeholder text
-        this.ctx.fillStyle = '#6c757d';
-        this.ctx.font = '12px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(field.placeholder, field.x + field.width / 2, field.y + field.height / 2 + 4);
-        
-        // Draw selection handles if selected
         if (isSelected) {
+            this.ctx.strokeStyle = '#667eea';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeRect(field.x, field.y, field.width, field.height);
             this.drawSelectionHandles(field);
+        } else {
+            this.ctx.strokeStyle = 'rgba(102, 126, 234, 0.3)';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(field.x, field.y, field.width, field.height);
         }
     }
 
@@ -803,13 +1004,312 @@ class CardCreator {
     }
 
     showElementProperties(elementRef) {
-        // This would show a properties panel for the selected element
         const element = this.getElementData(elementRef);
-        console.log('Selected element:', elementRef, element);
+        const propertiesContent = document.getElementById('properties-content');
+        
+        if (elementRef.type === 'text') {
+            propertiesContent.innerHTML = this.createTextPropertiesHTML(element, elementRef.index);
+        } else {
+            propertiesContent.innerHTML = this.createImagePropertiesHTML(element, elementRef.index);
+        }
+        
+        // Bind property change events
+        this.bindPropertyEvents(elementRef);
         
         // Update canvas info
         document.getElementById('canvas-info-text').textContent = 
             `Ausgewählt: ${elementRef.type === 'text' ? 'Text' : 'Bild'} ${elementRef.index + 1} (${element.x}, ${element.y})`;
+    }
+
+    createTextPropertiesHTML(element, index) {
+        return `
+            <div class="property-group">
+                <h5>Position & Größe</h5>
+                <div class="property-row">
+                    <label>X:</label>
+                    <input type="number" class="property-input" id="prop-x" value="${element.x}" min="0">
+                </div>
+                <div class="property-row">
+                    <label>Y:</label>
+                    <input type="number" class="property-input" id="prop-y" value="${element.y}" min="0">
+                </div>
+                <div class="property-row">
+                    <label>Breite:</label>
+                    <input type="number" class="property-input" id="prop-width" value="${element.width}" min="10">
+                </div>
+                <div class="property-row">
+                    <label>Höhe:</label>
+                    <input type="number" class="property-input" id="prop-height" value="${element.height}" min="10">
+                </div>
+            </div>
+
+            <div class="property-group">
+                <h5>Text</h5>
+                <textarea class="property-textarea" id="prop-text" placeholder="Textinhalt">${element.placeholder}</textarea>
+            </div>
+
+            <div class="property-group">
+                <h5>Schriftart</h5>
+                <div class="font-controls">
+                    <select class="property-input" id="prop-font-family">
+                        <option value="Arial" ${element.fontFamily === 'Arial' ? 'selected' : ''}>Arial</option>
+                        <option value="Times New Roman" ${element.fontFamily === 'Times New Roman' ? 'selected' : ''}>Times New Roman</option>
+                        <option value="Helvetica" ${element.fontFamily === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
+                        <option value="Georgia" ${element.fontFamily === 'Georgia' ? 'selected' : ''}>Georgia</option>
+                        <option value="Verdana" ${element.fontFamily === 'Verdana' ? 'selected' : ''}>Verdana</option>
+                    </select>
+                    <input type="number" class="property-input" id="prop-font-size" value="${element.fontSize}" min="8" max="72">
+                </div>
+                <div class="font-style-buttons">
+                    <button class="font-style-btn ${element.fontWeight === 'bold' ? 'active' : ''}" data-style="bold">B</button>
+                    <button class="font-style-btn ${element.fontStyle === 'italic' ? 'active' : ''}" data-style="italic">I</button>
+                    <button class="font-style-btn ${element.textDecoration === 'underline' ? 'active' : ''}" data-style="underline">U</button>
+                </div>
+                <div class="property-row">
+                    <label>Ausrichtung:</label>
+                    <select class="property-input" id="prop-text-align">
+                        <option value="left" ${element.textAlign === 'left' ? 'selected' : ''}>Links</option>
+                        <option value="center" ${element.textAlign === 'center' ? 'selected' : ''}>Zentriert</option>
+                        <option value="right" ${element.textAlign === 'right' ? 'selected' : ''}>Rechts</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="property-group">
+                <h5>Farben</h5>
+                <div class="property-row">
+                    <label>Textfarbe:</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="prop-text-color" value="${element.color}">
+                        <input type="text" class="property-input" id="prop-text-color-hex" value="${element.color}" style="width: 80px;">
+                    </div>
+                </div>
+                <div class="property-row">
+                    <label>Hintergrund:</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="prop-bg-color" value="${element.backgroundColor === 'transparent' ? '#ffffff' : element.backgroundColor}">
+                        <input type="text" class="property-input" id="prop-bg-color-hex" value="${element.backgroundColor}" style="width: 80px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="property-group">
+                <h5>Effekte</h5>
+                <div class="property-row">
+                    <label>Drehung:</label>
+                    <input type="range" id="prop-rotation" min="0" max="360" value="${element.rotation || 0}">
+                    <span>${element.rotation || 0}°</span>
+                </div>
+                <div class="property-row">
+                    <label>Transparenz:</label>
+                    <input type="range" id="prop-opacity" min="0" max="100" value="${(element.opacity || 1) * 100}">
+                    <span>${Math.round((element.opacity || 1) * 100)}%</span>
+                </div>
+            </div>
+
+            <div class="property-group">
+                <h5>Ebenen</h5>
+                <div class="layer-controls">
+                    <button class="layer-btn" data-action="front">Nach vorne</button>
+                    <button class="layer-btn" data-action="back">Nach hinten</button>
+                </div>
+            </div>
+        `;
+    }
+
+    createImagePropertiesHTML(element, index) {
+        return `
+            <div class="property-group">
+                <h5>Position & Größe</h5>
+                <div class="property-row">
+                    <label>X:</label>
+                    <input type="number" class="property-input" id="prop-x" value="${element.x}" min="0">
+                </div>
+                <div class="property-row">
+                    <label>Y:</label>
+                    <input type="number" class="property-input" id="prop-y" value="${element.y}" min="0">
+                </div>
+                <div class="property-row">
+                    <label>Breite:</label>
+                    <input type="number" class="property-input" id="prop-width" value="${element.width}" min="10">
+                </div>
+                <div class="property-row">
+                    <label>Höhe:</label>
+                    <input type="number" class="property-input" id="prop-height" value="${element.height}" min="10">
+                </div>
+                <div class="property-row">
+                    <label>Seitenverhältnis:</label>
+                    <input type="checkbox" id="prop-aspect-ratio" ${element.maintainAspectRatio ? 'checked' : ''}>
+                </div>
+            </div>
+
+            <div class="property-group">
+                <h5>Bild</h5>
+                <input type="file" id="prop-image-upload" accept="image/*" style="width: 100%; margin-bottom: 0.5rem;">
+                <div class="property-row">
+                    <label>Ausrichtung:</label>
+                    <select class="property-input" id="prop-alignment">
+                        <option value="left" ${element.alignment === 'left' ? 'selected' : ''}>Links</option>
+                        <option value="center" ${element.alignment === 'center' ? 'selected' : ''}>Zentriert</option>
+                        <option value="right" ${element.alignment === 'right' ? 'selected' : ''}>Rechts</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="property-group">
+                <h5>Rahmen</h5>
+                <div class="property-row">
+                    <label>Rahmenbreite:</label>
+                    <input type="number" class="property-input" id="prop-border-width" value="${element.borderWidth || 0}" min="0">
+                </div>
+                <div class="property-row">
+                    <label>Rahmenfarbe:</label>
+                    <input type="color" id="prop-border-color" value="${element.borderColor || '#000000'}">
+                </div>
+                <div class="property-row">
+                    <label>Rundung:</label>
+                    <input type="number" class="property-input" id="prop-border-radius" value="${element.borderRadius || 0}" min="0">
+                </div>
+            </div>
+
+            <div class="property-group">
+                <h5>Effekte</h5>
+                <div class="property-row">
+                    <label>Drehung:</label>
+                    <input type="range" id="prop-rotation" min="0" max="360" value="${element.rotation || 0}">
+                    <span>${element.rotation || 0}°</span>
+                </div>
+                <div class="property-row">
+                    <label>Transparenz:</label>
+                    <input type="range" id="prop-opacity" min="0" max="100" value="${(element.opacity || 1) * 100}">
+                    <span>${Math.round((element.opacity || 1) * 100)}%</span>
+                </div>
+            </div>
+
+            <div class="property-group">
+                <h5>Ebenen</h5>
+                <div class="layer-controls">
+                    <button class="layer-btn" data-action="front">Nach vorne</button>
+                    <button class="layer-btn" data-action="back">Nach hinten</button>
+                </div>
+            </div>
+        `;
+    }
+
+    bindPropertyEvents(elementRef) {
+        // Position and size
+        ['x', 'y', 'width', 'height'].forEach(prop => {
+            const input = document.getElementById(`prop-${prop}`);
+            if (input) {
+                input.addEventListener('change', () => {
+                    this.updateElementProperty(elementRef, prop, parseFloat(input.value));
+                });
+            }
+        });
+
+        // Text-specific properties
+        if (elementRef.type === 'text') {
+            const textInput = document.getElementById('prop-text');
+            if (textInput) {
+                textInput.addEventListener('input', () => {
+                    this.updateElementProperty(elementRef, 'placeholder', textInput.value);
+                });
+            }
+
+            const fontFamily = document.getElementById('prop-font-family');
+            if (fontFamily) {
+                fontFamily.addEventListener('change', () => {
+                    this.updateElementProperty(elementRef, 'fontFamily', fontFamily.value);
+                });
+            }
+
+            const fontSize = document.getElementById('prop-font-size');
+            if (fontSize) {
+                fontSize.addEventListener('change', () => {
+                    this.updateElementProperty(elementRef, 'fontSize', parseFloat(fontSize.value));
+                });
+            }
+
+            // Font style buttons
+            document.querySelectorAll('.font-style-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const style = btn.dataset.style;
+                    const element = this.getElementData(elementRef);
+                    
+                    if (style === 'bold') {
+                        element.fontWeight = element.fontWeight === 'bold' ? 'normal' : 'bold';
+                    } else if (style === 'italic') {
+                        element.fontStyle = element.fontStyle === 'italic' ? 'normal' : 'italic';
+                    } else if (style === 'underline') {
+                        element.textDecoration = element.textDecoration === 'underline' ? 'none' : 'underline';
+                    }
+                    
+                    btn.classList.toggle('active');
+                    this.updateCanvasPreview();
+                });
+            });
+
+            const textAlign = document.getElementById('prop-text-align');
+            if (textAlign) {
+                textAlign.addEventListener('change', () => {
+                    this.updateElementProperty(elementRef, 'textAlign', textAlign.value);
+                });
+            }
+
+            const textColor = document.getElementById('prop-text-color');
+            if (textColor) {
+                textColor.addEventListener('change', () => {
+                    this.updateElementProperty(elementRef, 'color', textColor.value);
+                });
+            }
+        }
+
+        // Common properties for both text and image
+        const rotation = document.getElementById('prop-rotation');
+        if (rotation) {
+            rotation.addEventListener('input', () => {
+                this.updateElementProperty(elementRef, 'rotation', parseFloat(rotation.value));
+                rotation.nextElementSibling.textContent = `${rotation.value}°`;
+            });
+        }
+
+        const opacity = document.getElementById('prop-opacity');
+        if (opacity) {
+            opacity.addEventListener('input', () => {
+                this.updateElementProperty(elementRef, 'opacity', parseFloat(opacity.value) / 100);
+                opacity.nextElementSibling.textContent = `${opacity.value}%`;
+            });
+        }
+
+        // Layer controls
+        document.querySelectorAll('.layer-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.handleLayerAction(elementRef, btn.dataset.action);
+            });
+        });
+    }
+
+    updateElementProperty(elementRef, property, value) {
+        this.saveState(); // Save state before modification
+        const element = this.getElementData(elementRef);
+        element[property] = value;
+        this.updateCanvasPreview();
+        this.updateFieldsLists();
+    }
+
+    handleLayerAction(elementRef, action) {
+        this.saveState();
+        const sideData = this.project.masterCard[this.currentSide];
+        const fields = elementRef.type === 'text' ? sideData.textFields : sideData.imageFields;
+        const element = fields[elementRef.index];
+        
+        if (action === 'front') {
+            element.zIndex = Math.max(...fields.map(f => f.zIndex || 0)) + 1;
+        } else if (action === 'back') {
+            element.zIndex = Math.min(...fields.map(f => f.zIndex || 0)) - 1;
+        }
+        
+        this.updateCanvasPreview();
     }
 
     updateToolbarState() {
@@ -859,6 +1359,273 @@ class CardCreator {
         
         this.updateCanvasPreview();
         this.updateFieldsLists();
+    }
+
+    // Undo/Redo System
+    saveState() {
+        const state = JSON.parse(JSON.stringify(this.project));
+        this.undoStack.push(state);
+        
+        if (this.undoStack.length > this.maxUndoSteps) {
+            this.undoStack.shift();
+        }
+        
+        this.redoStack = []; // Clear redo stack when new action is performed
+        this.updateUndoRedoButtons();
+    }
+
+    undo() {
+        if (this.undoStack.length > 0) {
+            const currentState = JSON.parse(JSON.stringify(this.project));
+            this.redoStack.push(currentState);
+            
+            const previousState = this.undoStack.pop();
+            this.project = previousState;
+            
+            this.selectedElement = null;
+            this.updateSideControls();
+            this.updateCanvasPreview();
+            this.updateFieldsLists();
+            this.hideElementProperties();
+            this.updateUndoRedoButtons();
+        }
+    }
+
+    redo() {
+        if (this.redoStack.length > 0) {
+            const currentState = JSON.parse(JSON.stringify(this.project));
+            this.undoStack.push(currentState);
+            
+            const nextState = this.redoStack.pop();
+            this.project = nextState;
+            
+            this.selectedElement = null;
+            this.updateSideControls();
+            this.updateCanvasPreview();
+            this.updateFieldsLists();
+            this.hideElementProperties();
+            this.updateUndoRedoButtons();
+        }
+    }
+
+    updateUndoRedoButtons() {
+        document.getElementById('undo').disabled = this.undoStack.length === 0;
+        document.getElementById('redo').disabled = this.redoStack.length === 0;
+    }
+
+    hideElementProperties() {
+        document.getElementById('properties-content').innerHTML = 
+            '<p class="no-selection">Wählen Sie ein Element aus, um dessen Eigenschaften zu bearbeiten.</p>';
+    }
+
+    // Project Management
+    saveProject() {
+        const projectData = {
+            ...this.project,
+            metadata: {
+                created: new Date().toISOString(),
+                version: '3.0',
+                appName: 'Card Creator'
+            }
+        };
+        
+        const dataStr = JSON.stringify(projectData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `card-project-${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+    }
+
+    loadProject() {
+        this.showModal(
+            'Projekt laden',
+            'Möchten Sie wirklich ein neues Projekt laden? Alle nicht gespeicherten Änderungen gehen verloren.',
+            () => {
+                document.getElementById('file-input').click();
+            }
+        );
+    }
+
+    handleFileLoad(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const projectData = JSON.parse(e.target.result);
+                
+                // Validate project data
+                if (this.validateProjectData(projectData)) {
+                    this.project = projectData;
+                    this.selectedElement = null;
+                    this.undoStack = [];
+                    this.redoStack = [];
+                    
+                    // Update UI
+                    this.updateSideControls();
+                    this.updateCanvasPreview();
+                    this.updateFieldsLists();
+                    this.hideElementProperties();
+                    this.updateUndoRedoButtons();
+                    
+                    alert('Projekt erfolgreich geladen!');
+                } else {
+                    alert('Ungültiges Projektformat!');
+                }
+            } catch (error) {
+                alert('Fehler beim Laden des Projekts: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
+        
+        // Clear the input
+        event.target.value = '';
+    }
+
+    validateProjectData(data) {
+        return data && 
+               data.masterCard && 
+               data.masterCard.front && 
+               data.masterCard.back &&
+               typeof data.paperSize === 'string' &&
+               typeof data.layout === 'string' &&
+               typeof data.cardCount === 'number';
+    }
+
+    // Modal System
+    showModal(title, message, confirmCallback) {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-message').textContent = message;
+        document.getElementById('confirmation-modal').classList.remove('hidden');
+        this.modalConfirmCallback = confirmCallback;
+    }
+
+    hideModal() {
+        document.getElementById('confirmation-modal').classList.add('hidden');
+        this.modalConfirmCallback = null;
+    }
+
+    handleModalConfirm() {
+        if (this.modalConfirmCallback) {
+            this.modalConfirmCallback();
+        }
+        this.hideModal();
+    }
+
+    // Export Functions
+    exportAsPNG() {
+        this.showLoadingOverlay('PNG wird generiert...');
+        
+        setTimeout(() => {
+            try {
+                const canvas = this.canvas;
+                const link = document.createElement('a');
+                link.download = `karte-${this.currentSide}-${new Date().toISOString().slice(0, 10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (error) {
+                alert('Fehler beim PNG-Export: ' + error.message);
+            } finally {
+                this.hideLoadingOverlay();
+            }
+        }, 500);
+    }
+
+    exportAsSVG() {
+        this.showLoadingOverlay('SVG wird generiert...');
+        
+        setTimeout(() => {
+            try {
+                const svgContent = this.generateSVG();
+                const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `karte-${this.currentSide}-${new Date().toISOString().slice(0, 10)}.svg`;
+                link.click();
+            } catch (error) {
+                alert('Fehler beim SVG-Export: ' + error.message);
+            } finally {
+                this.hideLoadingOverlay();
+            }
+        }, 500);
+    }
+
+    generateSVG() {
+        const sideData = this.project.masterCard[this.currentSide];
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        
+        let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
+        
+        // Background
+        svg += `<rect width="${width}" height="${height}" fill="${sideData.backgroundColor}"/>`;
+        
+        // Text fields
+        sideData.textFields.forEach(field => {
+            const transform = field.rotation ? `rotate(${field.rotation} ${field.x + field.width/2} ${field.y + field.height/2})` : '';
+            svg += `<text x="${field.x}" y="${field.y + field.fontSize}" 
+                    font-family="${field.fontFamily}" 
+                    font-size="${field.fontSize}" 
+                    font-weight="${field.fontWeight}"
+                    font-style="${field.fontStyle}"
+                    text-decoration="${field.textDecoration}"
+                    text-anchor="${field.textAlign === 'center' ? 'middle' : field.textAlign === 'right' ? 'end' : 'start'}"
+                    fill="${field.color}"
+                    opacity="${field.opacity || 1}"
+                    transform="${transform}">
+                    ${field.placeholder}
+                    </text>`;
+        });
+        
+        // Image fields (as rectangles for now)
+        sideData.imageFields.forEach(field => {
+            const transform = field.rotation ? `rotate(${field.rotation} ${field.x + field.width/2} ${field.y + field.height/2})` : '';
+            svg += `<rect x="${field.x}" y="${field.y}" 
+                    width="${field.width}" height="${field.height}"
+                    fill="#f8f9fa" 
+                    stroke="rgba(102, 126, 234, 0.5)"
+                    stroke-width="2"
+                    opacity="${field.opacity || 1}"
+                    transform="${transform}"/>`;
+            svg += `<text x="${field.x + field.width/2}" y="${field.y + field.height/2}" 
+                    text-anchor="middle" font-size="12" fill="#6c757d"
+                    transform="${transform}">
+                    ${field.placeholder}
+                    </text>`;
+        });
+        
+        svg += '</svg>';
+        return svg;
+    }
+
+    exportAsWord() {
+        alert('Word-Export wird in einer zukünftigen Version implementiert.');
+    }
+
+    exportAsImages() {
+        this.showLoadingOverlay('Bilder werden generiert...');
+        
+        setTimeout(() => {
+            try {
+                alert('Bilder-Export wird in einer zukünftigen Version implementiert.');
+            } catch (error) {
+                alert('Fehler beim Bilder-Export: ' + error.message);
+            } finally {
+                this.hideLoadingOverlay();
+            }
+        }, 1000);
+    }
+
+    showLoadingOverlay(text) {
+        document.getElementById('loading-text').textContent = text;
+        document.getElementById('loading-overlay').classList.remove('hidden');
+    }
+
+    hideLoadingOverlay() {
+        document.getElementById('loading-overlay').classList.add('hidden');
     }
 
     initializeCards() {

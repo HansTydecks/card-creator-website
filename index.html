@@ -103,6 +103,14 @@
                                 <div class="template-preview vocabulary"></div>
                                 <span>Vokabel</span>
                             </div>
+                            <div class="template-option" data-template="math">
+                                <div class="template-preview math"></div>
+                                <span>Mathe</span>
+                            </div>
+                            <div class="template-option" data-template="timeline">
+                                <div class="template-preview timeline"></div>
+                                <span>Timeline</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -192,13 +200,27 @@
                             <button class="btn btn-sm" id="align-left" disabled>Links ausrichten</button>
                             <button class="btn btn-sm" id="align-center" disabled>Zentrieren</button>
                             <button class="btn btn-sm" id="align-right" disabled>Rechts ausrichten</button>
+                            <button class="btn btn-sm" id="undo" disabled>↶ Rückgängig</button>
+                            <button class="btn btn-sm" id="redo" disabled>↷ Wiederholen</button>
+                        </div>
+                    </div>
+
+                    <!-- Element Properties Panel -->
+                    <div class="element-properties" id="element-properties">
+                        <h4>Element-Eigenschaften</h4>
+                        <div id="properties-content">
+                            <p class="no-selection">Wählen Sie ein Element aus, um dessen Eigenschaften zu bearbeiten.</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="step-actions">
                     <button id="back-to-setup" class="btn btn-secondary">← Zurück</button>
-                    <button id="continue-to-cards" class="btn btn-primary">Karten bearbeiten →</button>
+                    <div class="step-actions-right">
+                        <button id="save-project" class="btn btn-outline">💾 Speichern</button>
+                        <button id="load-project" class="btn btn-outline">📁 Laden</button>
+                        <button id="continue-to-cards" class="btn btn-primary">Karten bearbeiten →</button>
+                    </div>
                 </div>
             </section>
 
@@ -216,8 +238,12 @@
 
                 <div class="step-actions">
                     <button id="back-to-master" class="btn btn-secondary">← Masterkarte</button>
-                    <button id="generate-preview" class="btn btn-success">Vorschau generieren</button>
-                    <button id="download-pdf" class="btn btn-primary">PDF herunterladen</button>
+                    <div class="step-actions-right">
+                        <button id="export-png" class="btn btn-outline">🖼️ PNG Export</button>
+                        <button id="export-svg" class="btn btn-outline">📐 SVG Export</button>
+                        <button id="generate-preview" class="btn btn-success">Vorschau generieren</button>
+                        <button id="download-pdf" class="btn btn-primary">PDF herunterladen</button>
+                    </div>
                 </div>
             </section>
 
@@ -228,7 +254,8 @@
                     <div class="preview-controls">
                         <button id="preview-pdf" class="btn btn-primary">PDF Vorschau</button>
                         <button id="download-final-pdf" class="btn btn-success">PDF herunterladen</button>
-                        <button id="download-word" class="btn btn-secondary">Word herunterladen</button>
+                        <button id="download-word" class="btn btn-secondary">📄 Word Export</button>
+                        <button id="download-images" class="btn btn-outline">🖼️ Bilder Export</button>
                     </div>
                     <div class="preview-container">
                         <iframe id="pdf-preview" width="100%" height="600px"></iframe>
@@ -246,7 +273,22 @@
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay hidden">
         <div class="spinner"></div>
-        <p>Karten werden generiert...</p>
+        <p id="loading-text">Karten werden generiert...</p>
+    </div>
+
+    <!-- File Input for Project Loading -->
+    <input type="file" id="file-input" accept=".json" style="display: none;">
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="modal-title">Bestätigung</h3>
+            <p id="modal-message">Sind Sie sicher?</p>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="btn btn-secondary">Abbrechen</button>
+                <button id="modal-confirm" class="btn btn-primary">Bestätigen</button>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->

@@ -7,6 +7,18 @@ class CardCreator {
             layout: '2x2',
             cardCount: 4,
             template: 'blank',
+            customCardSize: { width: 85, height: 55 }, // mm
+            borderSettings: {
+                width: 2,
+                color: '#333333',
+                style: 'solid'
+            },
+            watermarkSettings: {
+                text: '',
+                opacity: 0.3,
+                size: 16,
+                position: 'bottom-right'
+            },
             masterCard: {
                 front: {
                     backgroundColor: '#ffffff',
@@ -70,7 +82,65 @@ class CardCreator {
                 document.querySelectorAll('.layout-option').forEach(o => o.classList.remove('selected'));
                 option.classList.add('selected');
                 this.project.layout = option.dataset.layout;
+                
+                // Show/hide custom size controls
+                const customSizeCard = document.getElementById('custom-size-card');
+                if (option.dataset.layout === 'custom') {
+                    customSizeCard.style.display = 'block';
+                } else {
+                    customSizeCard.style.display = 'none';
+                }
             });
+        });
+
+        // Custom card size controls
+        document.getElementById('custom-width').addEventListener('input', (e) => {
+            this.project.customCardSize.width = parseInt(e.target.value);
+            this.updateCardSizeDisplay();
+        });
+
+        document.getElementById('custom-height').addEventListener('input', (e) => {
+            this.project.customCardSize.height = parseInt(e.target.value);
+            this.updateCardSizeDisplay();
+        });
+
+        // Border controls
+        document.getElementById('border-width').addEventListener('input', (e) => {
+            this.project.borderSettings.width = parseFloat(e.target.value);
+            document.querySelector('#border-width + .value-display').textContent = e.target.value + 'px';
+            this.updateCanvasPreview();
+        });
+
+        document.getElementById('border-color').addEventListener('change', (e) => {
+            this.project.borderSettings.color = e.target.value;
+            this.updateCanvasPreview();
+        });
+
+        document.getElementById('border-style').addEventListener('change', (e) => {
+            this.project.borderSettings.style = e.target.value;
+            this.updateCanvasPreview();
+        });
+
+        // Watermark controls
+        document.getElementById('watermark-text').addEventListener('input', (e) => {
+            this.project.watermarkSettings.text = e.target.value;
+            this.updateCanvasPreview();
+        });
+
+        document.getElementById('watermark-opacity').addEventListener('input', (e) => {
+            this.project.watermarkSettings.opacity = parseFloat(e.target.value);
+            document.querySelector('#watermark-opacity + .value-display').textContent = Math.round(e.target.value * 100) + '%';
+            this.updateCanvasPreview();
+        });
+
+        document.getElementById('watermark-size').addEventListener('change', (e) => {
+            this.project.watermarkSettings.size = parseInt(e.target.value);
+            this.updateCanvasPreview();
+        });
+
+        document.getElementById('watermark-position').addEventListener('change', (e) => {
+            this.project.watermarkSettings.position = e.target.value;
+            this.updateCanvasPreview();
         });
 
         // Card count
@@ -193,6 +263,15 @@ class CardCreator {
             this.exportAsImages();
         });
 
+        // Preview Functions
+        document.getElementById('preview-pdf').addEventListener('click', () => {
+            this.previewPDF();
+        });
+
+        document.getElementById('download-final-pdf').addEventListener('click', () => {
+            this.downloadPDF();
+        });
+
         // Navigation
         document.getElementById('back-to-setup').addEventListener('click', () => {
             this.showStep('project-setup');
@@ -257,6 +336,60 @@ class CardCreator {
 
         document.getElementById('modal-confirm').addEventListener('click', () => {
             this.handleModalConfirm();
+        });
+
+        // Custom Card Size Events
+        document.getElementById('card-preset-standard').addEventListener('click', () => {
+            this.setCardSize(85, 55);
+        });
+
+        document.getElementById('card-preset-large').addEventListener('click', () => {
+            this.setCardSize(105, 74);
+        });
+
+        document.getElementById('card-preset-jumbo').addEventListener('click', () => {
+            this.setCardSize(120, 85);
+        });
+
+        document.getElementById('card-preset-mini').addEventListener('click', () => {
+            this.setCardSize(60, 40);
+        });
+
+        // Border Settings Events
+        document.getElementById('border-width').addEventListener('input', (e) => {
+            this.setBorderWidth(e.target.value);
+        });
+
+        document.getElementById('border-style').addEventListener('change', (e) => {
+            this.setBorderStyle(e.target.value);
+        });
+
+        document.getElementById('border-color').addEventListener('change', (e) => {
+            this.setBorderColor(e.target.value);
+        });
+
+        // Border color presets
+        document.querySelectorAll('.border-color-preset').forEach(preset => {
+            preset.addEventListener('click', (e) => {
+                this.setBorderColor(e.target.dataset.color);
+            });
+        });
+
+        // Watermark Settings Events
+        document.getElementById('watermark-text').addEventListener('input', (e) => {
+            this.setWatermarkText(e.target.value);
+        });
+
+        document.getElementById('watermark-opacity').addEventListener('input', (e) => {
+            this.setWatermarkOpacity(e.target.value);
+        });
+
+        document.getElementById('watermark-size').addEventListener('change', (e) => {
+            this.setWatermarkSize(e.target.value);
+        });
+
+        document.getElementById('watermark-position').addEventListener('change', (e) => {
+            this.setWatermarkPosition(e.target.value);
         });
     }
 
@@ -521,23 +654,75 @@ class CardCreator {
 
     initCanvas() {
         this.canvas = document.getElementById('card-preview');
+        if (!this.canvas) return;
+        
         this.ctx = this.canvas.getContext('2d');
         
-        // Set canvas size based on paper format and layout
+        // Set canvas size based on card dimensions
         const cardSize = this.getCardSize();
         this.canvas.width = cardSize.width;
         this.canvas.height = cardSize.height;
+        
+        // Set canvas style for proper display
+        this.canvas.style.width = Math.min(400, cardSize.width) + 'px';
+        this.canvas.style.height = Math.min(300, cardSize.height) + 'px';
+        
+        // Add canvas event listeners if not already added
+        if (!this.canvas.hasAttribute('data-events-added')) {
+            this.addCanvasEventListeners();
+            this.canvas.setAttribute('data-events-added', 'true');
+        }
+        
+        // Initial render
+        this.updateCanvasPreview();
+    }
+
+    addCanvasEventListeners() {
+        const canvas = this.canvas;
+        
+        canvas.addEventListener('mousedown', (e) => {
+            this.handleCanvasMouseDown(e);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            this.handleCanvasMouseMove(e);
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            this.handleCanvasMouseUp(e);
+        });
+
+        canvas.addEventListener('mouseleave', (e) => {
+            this.handleCanvasMouseUp(e);
+        });
     }
 
     getCardSize() {
-        // Return card dimensions in pixels for preview
-        // This is simplified - in real implementation you'd calculate based on DPI
-        const sizes = {
-            'a4': { '2x2': {width: 200, height: 280}, '2x4': {width: 150, height: 210}, '3x3': {width: 120, height: 170} },
-            'a3': { '2x2': {width: 280, height: 400}, '2x4': {width: 210, height: 300}, '3x3': {width: 170, height: 240} }
+        // Convert mm to pixels (roughly 3.78 pixels per mm at 96 DPI)
+        const mmToPixels = 3.78;
+        
+        if (this.project.layout === 'custom') {
+            return {
+                width: Math.round(this.project.customCardSize.width * mmToPixels),
+                height: Math.round(this.project.customCardSize.height * mmToPixels)
+            };
+        }
+        
+        // Standard card sizes based on layout and paper size
+        const standardSizes = {
+            'a4': { 
+                '2x2': {width: 200, height: 280}, 
+                '2x4': {width: 150, height: 210}, 
+                '3x3': {width: 120, height: 170} 
+            },
+            'a3': { 
+                '2x2': {width: 280, height: 400}, 
+                '2x4': {width: 210, height: 300}, 
+                '3x3': {width: 170, height: 240} 
+            }
         };
         
-        return sizes[this.project.paperSize][this.project.layout] || {width: 200, height: 280};
+        return standardSizes[this.project.paperSize]?.[this.project.layout] || {width: 200, height: 280};
     }
 
     updateCanvasPreview() {
@@ -552,33 +737,147 @@ class CardCreator {
         this.ctx.fillStyle = sideData.backgroundColor;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
+        // Draw custom border
+        this.drawCustomBorder();
+        
         // Draw texture
         this.drawTexture(sideData.texture);
         
-        // Draw text fields
-        sideData.textFields.forEach(field => {
-            this.drawTextField(field);
+        // Draw watermark first (under content)
+        if (this.project.watermarkSettings.text) {
+            this.drawWatermark();
+        }
+        
+        // Sort elements by zIndex for proper layering
+        const allElements = [
+            ...sideData.textFields.map((field, index) => ({ ...field, type: 'text', index })),
+            ...sideData.imageFields.map((field, index) => ({ ...field, type: 'image', index }))
+        ].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+        
+        // Draw all elements in proper order
+        allElements.forEach(element => {
+            if (element.type === 'text') {
+                this.drawTextField(element);
+            } else {
+                this.drawImageField(element);
+            }
         });
         
-        // Draw image fields
-        sideData.imageFields.forEach(field => {
-            this.drawImageField(field);
-        });
+        // Draw selection highlight
+        if (this.selectedElement) {
+            this.drawSelectionHighlight();
+        }
         
         // Draw cut marks
         if (sideData.showCutMarks) {
             this.drawCutMarks();
         }
+    }
+
+    drawCustomBorder() {
+        const border = this.project.borderSettings;
+        if (border.width <= 0) return;
         
-        // Draw card number
-        if (sideData.showCardNumbers) {
-            this.drawCardNumber();
+        this.ctx.save();
+        this.ctx.strokeStyle = border.color;
+        this.ctx.lineWidth = border.width;
+        
+        // Set line style
+        switch (border.style) {
+            case 'dashed':
+                this.ctx.setLineDash([10, 5]);
+                break;
+            case 'dotted':
+                this.ctx.setLineDash([2, 3]);
+                break;
+            case 'double':
+                // Draw outer border
+                this.ctx.strokeRect(border.width/2, border.width/2, 
+                    this.canvas.width - border.width, this.canvas.height - border.width);
+                // Draw inner border
+                this.ctx.strokeRect(border.width * 1.5, border.width * 1.5, 
+                    this.canvas.width - border.width * 3, this.canvas.height - border.width * 3);
+                this.ctx.restore();
+                return;
+            default:
+                this.ctx.setLineDash([]);
         }
         
-        // Draw watermark
-        if (sideData.showWatermark) {
-            this.drawWatermark();
+        this.ctx.strokeRect(border.width/2, border.width/2, 
+            this.canvas.width - border.width, this.canvas.height - border.width);
+        this.ctx.restore();
+    }
+
+    drawWatermark() {
+        const watermark = this.project.watermarkSettings;
+        if (!watermark.text) return;
+        
+        this.ctx.save();
+        this.ctx.globalAlpha = watermark.opacity;
+        this.ctx.fillStyle = '#cccccc';
+        this.ctx.font = `${watermark.size}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        let x, y;
+        switch (watermark.position) {
+            case 'center':
+                x = this.canvas.width / 2;
+                y = this.canvas.height / 2;
+                break;
+            case 'top-left':
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'top';
+                x = 10;
+                y = 10;
+                break;
+            case 'top-right':
+                this.ctx.textAlign = 'right';
+                this.ctx.textBaseline = 'top';
+                x = this.canvas.width - 10;
+                y = 10;
+                break;
+            case 'bottom-left':
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'bottom';
+                x = 10;
+                y = this.canvas.height - 10;
+                break;
+            case 'bottom-right':
+            default:
+                this.ctx.textAlign = 'right';
+                this.ctx.textBaseline = 'bottom';
+                x = this.canvas.width - 10;
+                y = this.canvas.height - 10;
+                break;
         }
+        
+        this.ctx.fillText(watermark.text, x, y);
+        this.ctx.restore();
+    }
+
+    drawSelectionHighlight() {
+        if (!this.selectedElement) return;
+        
+        const element = this.getElementData(this.selectedElement);
+        this.ctx.save();
+        this.ctx.strokeStyle = '#007bff';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.strokeRect(element.x - 2, element.y - 2, element.width + 4, element.height + 4);
+        
+        // Draw resize handles
+        const handleSize = 8;
+        this.ctx.fillStyle = '#007bff';
+        this.ctx.setLineDash([]);
+        
+        // Corner handles
+        this.ctx.fillRect(element.x - handleSize/2, element.y - handleSize/2, handleSize, handleSize);
+        this.ctx.fillRect(element.x + element.width - handleSize/2, element.y - handleSize/2, handleSize, handleSize);
+        this.ctx.fillRect(element.x - handleSize/2, element.y + element.height - handleSize/2, handleSize, handleSize);
+        this.ctx.fillRect(element.x + element.width - handleSize/2, element.y + element.height - handleSize/2, handleSize, handleSize);
+        
+        this.ctx.restore();
     }
 
     drawTexture(texture) {
@@ -1658,7 +1957,11 @@ class CardCreator {
             cardElement.innerHTML = `
                 <div class="card-accordion-header" onclick="cardCreator.toggleCardAccordion(${index})">
                     <span>Karte ${card.id}</span>
-                    <span>▼</span>
+                    <div class="card-preview-buttons">
+                        <button class="btn btn-sm preview-btn" onclick="event.stopPropagation(); cardCreator.previewCard(${index}, 'front')">👁️ Vorne</button>
+                        <button class="btn btn-sm preview-btn" onclick="event.stopPropagation(); cardCreator.previewCard(${index}, 'back')">👁️ Hinten</button>
+                        <span class="accordion-arrow">▼</span>
+                    </div>
                 </div>
                 <div class="card-accordion-content" id="card-content-${index}">
                     <div style="margin-bottom: 1rem;">
@@ -1676,6 +1979,484 @@ class CardCreator {
             // Render field inputs for this card
             this.renderCardFields(index);
         });
+    }
+
+    previewCard(cardIndex, side) {
+        const card = this.project.cards[cardIndex];
+        const previewCanvas = document.getElementById('cards-preview-canvas');
+        const ctx = previewCanvas.getContext('2d');
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        
+        // Scale canvas to show multiple cards
+        const cardSize = this.getCardSize();
+        const scale = Math.min(
+            previewCanvas.width / (cardSize.width * 2),
+            previewCanvas.height / (cardSize.height * 2)
+        );
+        
+        ctx.save();
+        ctx.scale(scale, scale);
+        
+        // Render the specific card
+        this.renderSpecificCard(ctx, card, side, 10, 10, cardSize);
+        
+        ctx.restore();
+        
+        // Update info
+        document.getElementById('canvas-info-text').textContent = 
+            `Vorschau: Karte ${card.id} - ${side === 'front' ? 'Vorderseite' : 'Rückseite'}`;
+    }
+
+    renderSpecificCard(ctx, card, side, x, y, size) {
+        const masterSide = this.project.masterCard[side];
+        
+        // Draw background
+        ctx.fillStyle = masterSide.backgroundColor;
+        ctx.fillRect(x, y, size.width, size.height);
+        
+        // Draw texture
+        this.renderTextureToCanvas(ctx, masterSide.texture, x, y, size);
+        
+        // Sort elements by zIndex
+        const allElements = [
+            ...masterSide.textFields.map((field, index) => ({ ...field, type: 'text', index })),
+            ...masterSide.imageFields.map((field, index) => ({ ...field, type: 'image', index }))
+        ].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+        
+        // Draw elements
+        allElements.forEach(element => {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            if (element.type === 'text') {
+                const content = card[side].textFields[element.index] || element.placeholder;
+                this.renderTextElementToCanvas(ctx, element, content);
+            } else {
+                const imageData = card[side].imageFields[element.index];
+                this.renderImageElementToCanvas(ctx, element, imageData);
+            }
+            
+            ctx.restore();
+        });
+        
+        // Draw watermark
+        this.renderWatermark(ctx, x, y, size.width, size.height);
+        
+        // Draw custom border
+        this.renderCardBorder(ctx, x, y, size.width, size.height);
+    }
+
+    renderTextureToCanvas(ctx, texture, x, y, size) {
+        if (texture === 'none') return;
+        
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+        ctx.lineWidth = 1;
+        
+        switch (texture) {
+            case 'lines':
+                for (let lineY = y; lineY < y + size.height; lineY += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, lineY);
+                    ctx.lineTo(x + size.width, lineY);
+                    ctx.stroke();
+                }
+                break;
+            case 'dots':
+                for (let dotX = x + 10; dotX < x + size.width; dotX += 20) {
+                    for (let dotY = y + 10; dotY < y + size.height; dotY += 20) {
+                        ctx.beginPath();
+                        ctx.arc(dotX, dotY, 1, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                }
+                break;
+            case 'grid':
+                for (let gridX = x; gridX < x + size.width; gridX += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(gridX, y);
+                    ctx.lineTo(gridX, y + size.height);
+                    ctx.stroke();
+                }
+                for (let gridY = y; gridY < y + size.height; gridY += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, gridY);
+                    ctx.lineTo(x + size.width, gridY);
+                    ctx.stroke();
+                }
+                break;
+        }
+    }
+
+    renderTextElementToCanvas(ctx, element, content) {
+        ctx.save();
+        
+        // Apply transformations
+        if (element.rotation) {
+            ctx.translate(element.x + element.width / 2, element.y + element.height / 2);
+            ctx.rotate((element.rotation * Math.PI) / 180);
+            ctx.translate(-element.width / 2, -element.height / 2);
+        } else {
+            ctx.translate(element.x, element.y);
+        }
+        
+        ctx.globalAlpha = element.opacity || 1;
+        
+        // Draw background
+        if (element.backgroundColor && element.backgroundColor !== 'transparent') {
+            ctx.fillStyle = element.backgroundColor;
+            ctx.fillRect(0, 0, element.width, element.height);
+        }
+        
+        // Set text style
+        ctx.fillStyle = element.color;
+        let fontStyle = '';
+        if (element.fontStyle === 'italic') fontStyle += 'italic ';
+        if (element.fontWeight === 'bold') fontStyle += 'bold ';
+        ctx.font = `${fontStyle}${element.fontSize}px ${element.fontFamily}`;
+        ctx.textAlign = element.textAlign;
+        
+        const textX = element.textAlign === 'center' ? element.width / 2 : 
+                     element.textAlign === 'right' ? element.width : 0;
+        
+        // Draw text with word wrapping
+        this.drawWrappedText(ctx, content, textX, element.fontSize, element.width, element.height, element.fontSize);
+        
+        ctx.restore();
+    }
+
+    renderImageElementToCanvas(ctx, element, imageData) {
+        ctx.save();
+        
+        // Apply transformations
+        if (element.rotation) {
+            ctx.translate(element.x + element.width / 2, element.y + element.height / 2);
+            ctx.rotate((element.rotation * Math.PI) / 180);
+            ctx.translate(-element.width / 2, -element.height / 2);
+        } else {
+            ctx.translate(element.x, element.y);
+        }
+        
+        ctx.globalAlpha = element.opacity || 1;
+        
+        if (imageData && imageData.dataUrl) {
+            const img = new Image();
+            img.onload = () => {
+                if (element.borderRadius && element.borderRadius > 0) {
+                    ctx.beginPath();
+                    this.roundRect(ctx, 0, 0, element.width, element.height, element.borderRadius);
+                    ctx.clip();
+                }
+                ctx.drawImage(img, 0, 0, element.width, element.height);
+            };
+            img.src = imageData.dataUrl;
+        } else {
+            // Draw placeholder
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, element.width, element.height);
+            
+            ctx.fillStyle = '#6c757d';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(element.placeholder, element.width / 2, element.height / 2 + 4);
+        }
+        
+        ctx.restore();
+    }
+
+    drawWrappedText(ctx, text, x, y, maxWidth, maxHeight, lineHeight) {
+        const words = text.split(' ');
+        let line = '';
+        let currentY = y;
+        
+        for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = ctx.measureText(testLine);
+            const testWidth = metrics.width;
+            
+            if (testWidth > maxWidth && n > 0) {
+                ctx.fillText(line, x, currentY);
+                line = words[n] + ' ';
+                currentY += lineHeight;
+                
+                if (currentY > maxHeight) break;
+            } else {
+                line = testLine;
+            }
+        }
+        
+        if (currentY <= maxHeight) {
+            ctx.fillText(line, x, currentY);
+        }
+    }
+
+    roundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+    }
+
+    renderWatermark(ctx, x, y, width, height) {
+        const watermark = this.project.watermarkSettings;
+        if (!watermark.text) return;
+        
+        ctx.save();
+        ctx.globalAlpha = watermark.opacity;
+        ctx.fillStyle = '#cccccc';
+        ctx.font = `${watermark.size}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        let textX, textY;
+        switch (watermark.position) {
+            case 'center':
+                textX = x + width / 2;
+                textY = y + height / 2;
+                break;
+            case 'top-left':
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                textX = x + 10;
+                textY = y + 10;
+                break;
+            case 'top-right':
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'top';
+                textX = x + width - 10;
+                textY = y + 10;
+                break;
+            case 'bottom-left':
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'bottom';
+                textX = x + 10;
+                textY = y + height - 10;
+                break;
+            case 'bottom-right':
+            default:
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                textX = x + width - 10;
+                textY = y + height - 10;
+                break;
+        }
+        
+        ctx.fillText(watermark.text, textX, textY);
+        ctx.restore();
+    }
+
+    renderCardBorder(ctx, x, y, width, height) {
+        const border = this.project.borderSettings;
+        if (border.width <= 0) return;
+        
+        ctx.save();
+        ctx.strokeStyle = border.color;
+        ctx.lineWidth = border.width;
+        
+        // Set line style
+        switch (border.style) {
+            case 'dashed':
+                ctx.setLineDash([10, 5]);
+                break;
+            case 'dotted':
+                ctx.setLineDash([2, 3]);
+                break;
+            case 'double':
+                // Draw outer border
+                ctx.strokeRect(x + border.width/2, y + border.width/2, 
+                    width - border.width, height - border.width);
+                // Draw inner border
+                ctx.strokeRect(x + border.width * 1.5, y + border.width * 1.5, 
+                    width - border.width * 3, height - border.width * 3);
+                ctx.restore();
+                return;
+            default:
+                ctx.setLineDash([]);
+        }
+        
+        ctx.strokeRect(x + border.width/2, y + border.width/2, 
+            width - border.width, height - border.width);
+        ctx.restore();
+    }
+
+    // New utility functions for custom features
+    applyCardSizePreset(width, height) {
+        this.project.customCardSize.width = width;
+        this.project.customCardSize.height = height;
+        
+        document.getElementById('custom-width').value = width;
+        document.getElementById('custom-height').value = height;
+        
+        this.updateCardSizeDisplay();
+    }
+
+    updateCardSizeDisplay() {
+        const { width, height } = this.project.customCardSize;
+        const ratio = (width / height).toFixed(2);
+        
+        // Update display text
+        document.getElementById('card-size-value').textContent = `${width} × ${height} mm (${ratio}:1)`;
+        
+        // Update canvas if it exists and we're on master design step
+        if (this.canvas && this.currentStep === 'master-design') {
+            this.initCanvas(); // Reinitialize with new size
+        }
+    }
+
+    setBorderColor(color) {
+        this.project.borderSettings.color = color;
+        document.getElementById('border-color').value = color;
+        this.updateCanvasPreview();
+    }
+
+    setWatermarkText(text) {
+        this.project.watermarkSettings.text = text.substring(0, 50); // Limit to 50 chars
+        this.updateCanvasPreview();
+    }
+
+    setWatermarkOpacity(opacity) {
+        this.project.watermarkSettings.opacity = opacity / 100;
+        document.getElementById('watermark-opacity-value').textContent = `${opacity}%`;
+        this.updateCanvasPreview();
+    }
+
+    setWatermarkSize(size) {
+        this.project.watermarkSettings.size = parseInt(size);
+        this.updateCanvasPreview();
+    }
+
+    setWatermarkPosition(position) {
+        this.project.watermarkSettings.position = position;
+        this.updateCanvasPreview();
+    }
+
+    setBorderWidth(width) {
+        this.project.borderSettings.width = parseInt(width);
+        document.getElementById('border-width-value').textContent = `${width}px`;
+        this.updateCanvasPreview();
+    }
+
+    setBorderStyle(style) {
+        this.project.borderSettings.style = style;
+        this.updateCanvasPreview();
+    }
+
+    getCardSize() {
+        if (this.project.layout === 'custom') {
+            // Convert mm to pixels (assuming 96 DPI)
+            const mmToPx = 96 / 25.4;
+            return {
+                width: this.project.customCardSize.width * mmToPx,
+                height: this.project.customCardSize.height * mmToPx
+            };
+        }
+        
+        // Default sizes for standard layouts
+        const layouts = {
+            '2x2': { width: 320, height: 200 },
+            '2x4': { width: 160, height: 100 },
+            '3x3': { width: 200, height: 133 }
+        };
+        
+        return layouts[this.project.layout] || layouts['2x2'];
+    }
+
+    renderCardBorder(ctx, x, y, width, height) {
+        const { width: borderWidth, color, style } = this.project.borderSettings;
+        
+        if (borderWidth > 0) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = borderWidth;
+            
+            // Set line style
+            switch (style) {
+                case 'dashed':
+                    ctx.setLineDash([10, 5]);
+                    break;
+                case 'dotted':
+                    ctx.setLineDash([2, 3]);
+                    break;
+                case 'double':
+                    // Draw two borders
+                    ctx.lineWidth = borderWidth / 3;
+                    ctx.strokeRect(x, y, width, height);
+                    ctx.strokeRect(x + borderWidth, y + borderWidth, width - 2 * borderWidth, height - 2 * borderWidth);
+                    ctx.restore();
+                    return;
+                default:
+                    ctx.setLineDash([]);
+            }
+            
+            ctx.strokeRect(x, y, width, height);
+            ctx.restore();
+        }
+    }
+
+    renderWatermark(ctx, x, y, width, height) {
+        const { text, opacity, size, position } = this.project.watermarkSettings;
+        
+        if (!text || text.trim() === '') return;
+        
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = '#666666';
+        ctx.font = `${size}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        let watermarkX, watermarkY;
+        
+        switch (position) {
+            case 'center':
+                watermarkX = x + width / 2;
+                watermarkY = y + height / 2;
+                break;
+            case 'bottom-right':
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                watermarkX = x + width - 10;
+                watermarkY = y + height - 10;
+                break;
+            case 'bottom-left':
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'bottom';
+                watermarkX = x + 10;
+                watermarkY = y + height - 10;
+                break;
+            case 'top-right':
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'top';
+                watermarkX = x + width - 10;
+                watermarkY = y + 10;
+                break;
+            case 'top-left':
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                watermarkX = x + 10;
+                watermarkY = y + 10;
+                break;
+            default:
+                watermarkX = x + width / 2;
+                watermarkY = y + height / 2;
+        }
+        
+        ctx.fillText(text, watermarkX, watermarkY);
+        ctx.restore();
+    }
+
+    updateCanvasPreview() {
+        if (this.canvas && this.ctx) {
+            this.redrawCanvas();
+        }
     }
 
     renderCardFields(cardIndex) {
@@ -1723,7 +2504,32 @@ class CardCreator {
 
     toggleCardAccordion(cardIndex) {
         const content = document.getElementById(`card-content-${cardIndex}`);
-        content.classList.toggle('active');
+        const item = content.closest('.card-accordion-item');
+        const arrow = item.querySelector('.accordion-arrow');
+        
+        // Close all other accordions first
+        document.querySelectorAll('.card-accordion-item').forEach((otherItem, otherIndex) => {
+            if (otherIndex !== cardIndex) {
+                otherItem.classList.remove('active');
+                const otherContent = otherItem.querySelector('.card-accordion-content');
+                const otherArrow = otherItem.querySelector('.accordion-arrow');
+                if (otherContent) otherContent.style.maxHeight = '0';
+                if (otherArrow) otherArrow.style.transform = 'rotate(0deg)';
+            }
+        });
+        
+        // Toggle current accordion
+        const isActive = item.classList.contains('active');
+        
+        if (isActive) {
+            item.classList.remove('active');
+            content.style.maxHeight = '0';
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        } else {
+            item.classList.add('active');
+            content.style.maxHeight = content.scrollHeight + 'px';
+            if (arrow) arrow.style.transform = 'rotate(180deg)';
+        }
     }
 
     updateCardField(cardIndex, side, type, fieldIndex, value) {
@@ -1777,9 +2583,379 @@ class CardCreator {
     }
 
     generatePreview() {
-        this.showStep('preview-download');
-        // In a real implementation, this would generate a PDF preview
-        document.getElementById('pdf-preview').src = 'data:text/html,<h2>PDF Vorschau wird hier angezeigt</h2><p>Implementierung folgt...</p>';
+        this.showLoadingOverlay('Vorschau wird generiert...');
+        
+        setTimeout(async () => {
+            try {
+                // Generate preview PDF
+                const previewPDF = await this.generatePreviewPDF();
+                
+                // Show preview in iframe
+                const previewContainer = document.getElementById('pdf-preview');
+                previewContainer.src = previewPDF;
+                
+                this.showStep('preview-download');
+                
+            } catch (error) {
+                console.error('Error generating preview:', error);
+                alert('Fehler beim Generieren der Vorschau: ' + error.message);
+            } finally {
+                this.hideLoadingOverlay();
+            }
+        }, 500);
+    }
+
+    async generatePreviewPDF() {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: this.project.paperSize
+        });
+
+        // Calculate layout dimensions
+        const pageSize = this.getPageDimensions();
+        const cardLayout = this.getCardLayout();
+        const cardDimensions = this.calculateCardDimensions(pageSize, cardLayout);
+
+        // Generate preview with first 4 cards maximum
+        const previewCardCount = Math.min(this.project.cardCount, cardLayout.cardsPerPage);
+        
+        // Add title page
+        pdf.setFontSize(20);
+        pdf.text('Card Creator - Vorschau', 20, 30);
+        pdf.setFontSize(12);
+        pdf.text(`Projekt: ${this.project.cardCount} Karten`, 20, 45);
+        pdf.text(`Layout: ${this.project.layout} auf ${this.project.paperSize.toUpperCase()}`, 20, 55);
+        pdf.text(`Template: ${this.project.template}`, 20, 65);
+        pdf.text(`Erstellt: ${new Date().toLocaleDateString('de-DE')}`, 20, 75);
+
+        // Add sample cards page
+        pdf.addPage();
+        
+        for (let cardIndex = 0; cardIndex < previewCardCount; cardIndex++) {
+            const card = this.project.cards[cardIndex] || { 
+                id: cardIndex + 1, 
+                front: { textFields: {}, imageFields: {} },
+                back: { textFields: {}, imageFields: {} }
+            };
+            
+            const row = Math.floor(cardIndex / cardLayout.cols);
+            const col = cardIndex % cardLayout.cols;
+            
+            const x = cardDimensions.margin + col * (cardDimensions.width + cardDimensions.spacing);
+            const y = cardDimensions.margin + row * (cardDimensions.height + cardDimensions.spacing);
+            
+            // Render front side
+            await this.renderCardToPDF(pdf, card, 'front', x, y, cardDimensions);
+        }
+
+        // Add back sides page if there are cards
+        if (previewCardCount > 0) {
+            pdf.addPage();
+            
+            for (let cardIndex = 0; cardIndex < previewCardCount; cardIndex++) {
+                const card = this.project.cards[cardIndex] || { 
+                    id: cardIndex + 1, 
+                    front: { textFields: {}, imageFields: {} },
+                    back: { textFields: {}, imageFields: {} }
+                };
+                
+                const row = Math.floor(cardIndex / cardLayout.cols);
+                const col = (cardLayout.cols - 1) - (cardIndex % cardLayout.cols); // Mirror for back side
+                
+                const x = cardDimensions.margin + col * (cardDimensions.width + cardDimensions.spacing);
+                const y = cardDimensions.margin + row * (cardDimensions.height + cardDimensions.spacing);
+                
+                // Render back side
+                await this.renderCardToPDF(pdf, card, 'back', x, y, cardDimensions);
+            }
+        }
+
+        // Return PDF as data URL for preview
+        return pdf.output('datauristring');
+    }
+
+    previewPDF() {
+        this.showLoadingOverlay('PDF-Vorschau wird geladen...');
+        
+        setTimeout(async () => {
+            try {
+                const fullPDF = await this.generateFullPDF();
+                const previewContainer = document.getElementById('pdf-preview');
+                previewContainer.src = fullPDF;
+                
+            } catch (error) {
+                console.error('Error generating PDF preview:', error);
+                alert('Fehler beim Laden der PDF-Vorschau: ' + error.message);
+            } finally {
+                this.hideLoadingOverlay();
+            }
+        }, 500);
+    }
+
+    async generateFullPDF() {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: this.project.paperSize
+        });
+        
+        // Calculate card dimensions and positions
+        const pageSize = this.getPageDimensions();
+        const cardLayout = this.getCardLayout();
+        const cardDimensions = this.calculateCardDimensions(pageSize, cardLayout);
+        
+        let currentPage = 0;
+        let cardsOnCurrentPage = 0;
+        
+        // Generate all front sides first
+        for (let cardIndex = 0; cardIndex < this.project.cardCount; cardIndex++) {
+            const card = this.project.cards[cardIndex] || {
+                id: cardIndex + 1,
+                front: { textFields: {}, imageFields: {} },
+                back: { textFields: {}, imageFields: {} }
+            };
+            
+            // Calculate position on page
+            const row = Math.floor(cardsOnCurrentPage / cardLayout.cols);
+            const col = cardsOnCurrentPage % cardLayout.cols;
+            
+            const x = cardDimensions.margin + col * (cardDimensions.width + cardDimensions.spacing);
+            const y = cardDimensions.margin + row * (cardDimensions.height + cardDimensions.spacing);
+            
+            // Render front side
+            await this.renderCardToPDF(pdf, card, 'front', x, y, cardDimensions);
+            
+            cardsOnCurrentPage++;
+            
+            // Check if we need a new page
+            if (cardsOnCurrentPage >= cardLayout.cardsPerPage || cardIndex === this.project.cardCount - 1) {
+                // Add back sides on next page
+                pdf.addPage();
+                
+                const startIndex = cardIndex - cardsOnCurrentPage + 1;
+                for (let backIndex = startIndex; backIndex <= cardIndex; backIndex++) {
+                    const backCard = this.project.cards[backIndex] || {
+                        id: backIndex + 1,
+                        front: { textFields: {}, imageFields: {} },
+                        back: { textFields: {}, imageFields: {} }
+                    };
+                    
+                    const backRow = Math.floor((backIndex - startIndex) / cardLayout.cols);
+                    const backCol = (cardLayout.cols - 1) - ((backIndex - startIndex) % cardLayout.cols); // Mirror for back side
+                    
+                    const backX = cardDimensions.margin + backCol * (cardDimensions.width + cardDimensions.spacing);
+                    const backY = cardDimensions.margin + backRow * (cardDimensions.height + cardDimensions.spacing);
+                    
+                    await this.renderCardToPDF(pdf, backCard, 'back', backX, backY, cardDimensions);
+                }
+                
+                cardsOnCurrentPage = 0;
+                if (cardIndex < this.project.cardCount - 1) {
+                    pdf.addPage();
+                }
+            }
+        }
+        
+        // Add metadata
+        pdf.setProperties({
+            title: 'Card Creator - Lernkarten',
+            subject: 'Generierte Lernkarten',
+            author: 'Card Creator App',
+            creator: 'Card Creator App',
+            keywords: 'Lernkarten, Bildung, Unterricht'
+        });
+        
+        return pdf.output('datauristring');
+    }
+
+    // Enhanced card rendering for better preview quality
+    async renderCardToPDF(pdf, card, side, x, y, dimensions) {
+        const masterSide = this.project.masterCard[side];
+        
+        // Draw background with better color handling
+        if (masterSide.backgroundColor && masterSide.backgroundColor !== 'transparent') {
+            const bgColor = this.hexToRgb(masterSide.backgroundColor);
+            pdf.setFillColor(bgColor.r, bgColor.g, bgColor.b);
+            pdf.rect(x, y, dimensions.width, dimensions.height, 'F');
+        }
+        
+        // Draw background texture
+        if (masterSide.texture && masterSide.texture !== 'none') {
+            this.drawTextureToPDF(pdf, masterSide.texture, x, y, dimensions);
+        }
+        
+        // Sort elements by zIndex for proper layering
+        const allElements = [
+            ...masterSide.textFields.map((field, index) => ({ ...field, type: 'text', index })),
+            ...masterSide.imageFields.map((field, index) => ({ ...field, type: 'image', index }))
+        ].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+        
+        // Draw all elements in correct order
+        for (const element of allElements) {
+            if (element.type === 'text') {
+                const content = card[side].textFields[element.index] || element.placeholder;
+                this.drawTextFieldToPDF(pdf, element, content, x, y, dimensions);
+            } else {
+                const imageData = card[side].imageFields[element.index];
+                await this.drawImageFieldToPDF(pdf, element, imageData, x, y, dimensions);
+            }
+        }
+        
+        // Draw cut marks if enabled
+        if (masterSide.showCutMarks) {
+            this.drawCutMarksToPDF(pdf, x, y, dimensions);
+        }
+        
+        // Draw card number if enabled
+        if (masterSide.showCardNumbers) {
+            this.drawCardNumberToPDF(pdf, card.id, x, y, dimensions);
+        }
+        
+        // Draw watermark if enabled or if watermark settings exist
+        if (masterSide.showWatermark || this.project.watermarkSettings.text) {
+            this.drawWatermarkToPDF(pdf, x, y, dimensions);
+        }
+        
+        // Draw custom border
+        this.drawCardBorderToPDF(pdf, x, y, dimensions);
+    }
+
+    drawCardBorderToPDF(pdf, x, y, dimensions) {
+        const { width: borderWidth, color, style } = this.project.borderSettings;
+        
+        if (borderWidth > 0) {
+            const borderColor = this.hexToRgb(color);
+            pdf.setDrawColor(borderColor.r, borderColor.g, borderColor.b);
+            pdf.setLineWidth(borderWidth * 0.3); // Convert to mm
+            
+            // Set line style
+            switch (style) {
+                case 'dashed':
+                    pdf.setLineDashPattern([3, 2], 0);
+                    break;
+                case 'dotted':
+                    pdf.setLineDashPattern([1, 1], 0);
+                    break;
+                case 'double':
+                    // Draw two borders
+                    pdf.setLineWidth((borderWidth * 0.3) / 2);
+                    pdf.rect(x, y, dimensions.width, dimensions.height, 'S');
+                    pdf.rect(x + borderWidth * 0.15, y + borderWidth * 0.15, 
+                            dimensions.width - borderWidth * 0.3, 
+                            dimensions.height - borderWidth * 0.3, 'S');
+                    pdf.setLineDashPattern([], 0); // Reset dash pattern
+                    return;
+                default:
+                    pdf.setLineDashPattern([], 0); // Solid line
+            }
+            
+            pdf.rect(x, y, dimensions.width, dimensions.height, 'S');
+            pdf.setLineDashPattern([], 0); // Reset dash pattern
+        }
+    }
+
+    drawWatermarkToPDF(pdf, x, y, dimensions) {
+        const { text, opacity, size, position } = this.project.watermarkSettings;
+        
+        if (!text || text.trim() === '') return;
+        
+        pdf.setGState(new pdf.GState({ opacity: opacity }));
+        pdf.setTextColor(100, 100, 100);
+        pdf.setFontSize(size * 0.75); // Convert to PDF units
+        
+        let watermarkX, watermarkY;
+        let align = 'center';
+        
+        switch (position) {
+            case 'center':
+                watermarkX = x + dimensions.width / 2;
+                watermarkY = y + dimensions.height / 2;
+                align = 'center';
+                break;
+            case 'bottom-right':
+                watermarkX = x + dimensions.width - 5;
+                watermarkY = y + dimensions.height - 5;
+                align = 'right';
+                break;
+            case 'bottom-left':
+                watermarkX = x + 5;
+                watermarkY = y + dimensions.height - 5;
+                align = 'left';
+                break;
+            case 'top-right':
+                watermarkX = x + dimensions.width - 5;
+                watermarkY = y + 10;
+                align = 'right';
+                break;
+            case 'top-left':
+                watermarkX = x + 5;
+                watermarkY = y + 10;
+                align = 'left';
+                break;
+            default:
+                watermarkX = x + dimensions.width / 2;
+                watermarkY = y + dimensions.height / 2;
+                align = 'center';
+        }
+        
+        pdf.text(text, watermarkX, watermarkY, { align: align });
+        pdf.setGState(new pdf.GState({ opacity: 1 })); // Reset opacity
+    }
+
+    drawTextureToPDF(pdf, texture, x, y, dimensions) {
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setGState(new pdf.GState({ opacity: 0.1 }));
+        
+        switch (texture) {
+            case 'lines':
+                for (let lineY = y; lineY < y + dimensions.height; lineY += 5) {
+                    pdf.line(x, lineY, x + dimensions.width, lineY);
+                }
+                break;
+            case 'dots':
+                for (let dotX = x + 5; dotX < x + dimensions.width; dotX += 10) {
+                    for (let dotY = y + 5; dotY < y + dimensions.height; dotY += 10) {
+                        pdf.circle(dotX, dotY, 0.5, 'F');
+                    }
+                }
+                break;
+            case 'grid':
+                for (let gridX = x; gridX < x + dimensions.width; gridX += 5) {
+                    pdf.line(gridX, y, gridX, y + dimensions.height);
+                }
+                for (let gridY = y; gridY < y + dimensions.height; gridY += 5) {
+                    pdf.line(x, gridY, x + dimensions.width, gridY);
+                }
+                break;
+        }
+        
+        pdf.setGState(new pdf.GState({ opacity: 1 })); // Reset opacity
+    }
+
+    drawWatermarkToPDF(pdf, x, y, dimensions) {
+        pdf.setGState(new pdf.GState({ opacity: 0.1 }));
+        pdf.setTextColor(128, 128, 128);
+        pdf.setFontSize(8);
+        
+        // Rotate and draw watermark
+        pdf.text('CARD CREATOR', x + dimensions.width / 2, y + dimensions.height / 2, {
+            angle: -45,
+            align: 'center'
+        });
+        
+        pdf.setGState(new pdf.GState({ opacity: 1 })); // Reset opacity
+    }
+
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : { r: 255, g: 255, b: 255 };
     }
 
     async downloadPDF() {

@@ -75,6 +75,101 @@
                                 </div>
                                 <span>3×3 Karten</span>
                             </div>
+                            <div class="layout-option" data-layout="custom">
+                                <div class="layout-preview custom-preview">
+                                    <div class="custom-icon">📐</div>
+                                </div>
+                                <span>Benutzerdefiniert</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setup-card custom-size-card" id="custom-size-card" style="display: none;">
+                        <h3>📏 Kartengröße anpassen</h3>
+                        <div class="size-controls">
+                            <div class="size-input-group">
+                                <label>Breite (mm):</label>
+                                <input type="number" id="custom-width" min="30" max="200" value="85" step="1">
+                            </div>
+                            <div class="size-input-group">
+                                <label>Höhe (mm):</label>
+                                <input type="number" id="custom-height" min="30" max="300" value="55" step="1">
+                            </div>
+                        </div>
+                        <div class="size-presets">
+                            <button type="button" class="preset-btn" onclick="cardCreator.applyCardSizePreset(85, 55)">Standard</button>
+                            <button type="button" class="preset-btn" onclick="cardCreator.applyCardSizePreset(100, 70)">Groß</button>
+                            <button type="button" class="preset-btn" onclick="cardCreator.applyCardSizePreset(120, 80)">Jumbo</button>
+                            <button type="button" class="preset-btn" onclick="cardCreator.applyCardSizePreset(65, 45)">Mini</button>
+                        </div>
+                    </div>
+
+                    <div class="setup-card">
+                        <h3>🎨 Karten-Rahmen</h3>
+                        <div class="border-controls">
+                            <div class="border-input-group">
+                                <label>Rahmenbreite:</label>
+                                <input type="range" id="border-width" min="0" max="10" value="2" step="0.5">
+                                <span class="value-display">2px</span>
+                            </div>
+                            <div class="border-input-group">
+                                <label>Rahmenfarbe:</label>
+                                <div class="color-picker-group">
+                                    <input type="color" id="border-color" value="#333333">
+                                    <div class="color-presets">
+                                        <div class="color-preset" style="background: #333333" onclick="cardCreator.setBorderColor('#333333')"></div>
+                                        <div class="color-preset" style="background: #007bff" onclick="cardCreator.setBorderColor('#007bff')"></div>
+                                        <div class="color-preset" style="background: #28a745" onclick="cardCreator.setBorderColor('#28a745')"></div>
+                                        <div class="color-preset" style="background: #dc3545" onclick="cardCreator.setBorderColor('#dc3545')"></div>
+                                        <div class="color-preset" style="background: #ffc107" onclick="cardCreator.setBorderColor('#ffc107')"></div>
+                                        <div class="color-preset" style="background: #6f42c1" onclick="cardCreator.setBorderColor('#6f42c1')"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="border-input-group">
+                                <label>Rahmenstil:</label>
+                                <select id="border-style">
+                                    <option value="solid">Durchgezogen</option>
+                                    <option value="dashed">Gestrichelt</option>
+                                    <option value="dotted">Gepunktet</option>
+                                    <option value="double">Doppelt</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setup-card">
+                        <h3>💧 Wasserzeichen</h3>
+                        <div class="watermark-controls">
+                            <div class="watermark-input-group">
+                                <label>Wasserzeichen-Text:</label>
+                                <input type="text" id="watermark-text" placeholder="z.B. Ihr Firmenname oder Copyright" maxlength="50">
+                            </div>
+                            <div class="watermark-settings">
+                                <div class="watermark-setting">
+                                    <label>Transparenz:</label>
+                                    <input type="range" id="watermark-opacity" min="0.1" max="0.8" value="0.3" step="0.1">
+                                    <span class="value-display">30%</span>
+                                </div>
+                                <div class="watermark-setting">
+                                    <label>Größe:</label>
+                                    <select id="watermark-size">
+                                        <option value="12">Klein</option>
+                                        <option value="16" selected>Normal</option>
+                                        <option value="20">Groß</option>
+                                    </select>
+                                </div>
+                                <div class="watermark-setting">
+                                    <label>Position:</label>
+                                    <select id="watermark-position">
+                                        <option value="center">Mittig</option>
+                                        <option value="bottom-right" selected>Unten rechts</option>
+                                        <option value="bottom-left">Unten links</option>
+                                        <option value="top-right">Oben rechts</option>
+                                        <option value="top-left">Oben links</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

@@ -107,7 +107,91 @@ body {
     accent-color: #667eea;
 }
 
-/* Layout Grid */
+/* Template Grid */
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 1rem;
+}
+
+.template-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.8rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+}
+
+.template-option:hover,
+.template-option.selected {
+    border-color: #667eea;
+    background-color: rgba(102, 126, 234, 0.1);
+}
+
+.template-preview {
+    width: 40px;
+    height: 56px;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    position: relative;
+}
+
+.template-preview.blank {
+    background: white;
+    border: 2px solid #dee2e6;
+}
+
+.template-preview.flashcard {
+    background: linear-gradient(to bottom, #f8f9fa 0%, #f8f9fa 50%, #e9ecef 50%, #e9ecef 100%);
+    border: 1px solid #dee2e6;
+}
+
+.template-preview.quiz {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+}
+
+.template-preview.vocabulary {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+}
+
+.template-preview.flashcard::after {
+    content: "Q";
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-weight: bold;
+    color: #495057;
+}
+
+.template-preview.quiz::after {
+    content: "?";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    font-weight: bold;
+    color: #856404;
+}
+
+.template-preview.vocabulary::after {
+    content: "Aa";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10px;
+    font-weight: bold;
+    color: #0c5460;
+}
 .layout-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -318,6 +402,11 @@ input[type="color"] {
     cursor: pointer;
 }
 
+input[type="range"] {
+    flex: 1;
+    margin: 0 0.5rem;
+}
+
 select {
     padding: 0.5rem;
     border: 2px solid #e9ecef;
@@ -329,6 +418,25 @@ select {
 select:focus {
     outline: none;
     border-color: #667eea;
+}
+
+/* Canvas Toolbar */
+.canvas-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .checkbox-label {

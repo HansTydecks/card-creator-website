@@ -83,6 +83,28 @@
                         <input type="number" id="card-count" min="1" max="100" value="4">
                         <small>Anzahl der zu erstellenden Karten</small>
                     </div>
+
+                    <div class="setup-card">
+                        <h3>Vorlage wählen</h3>
+                        <div class="template-grid">
+                            <div class="template-option" data-template="blank">
+                                <div class="template-preview blank"></div>
+                                <span>Leer</span>
+                            </div>
+                            <div class="template-option" data-template="flashcard">
+                                <div class="template-preview flashcard"></div>
+                                <span>Karteikarte</span>
+                            </div>
+                            <div class="template-option" data-template="quiz">
+                                <div class="template-preview quiz"></div>
+                                <span>Quiz</span>
+                            </div>
+                            <div class="template-option" data-template="vocabulary">
+                                <div class="template-preview vocabulary"></div>
+                                <span>Vokabel</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <button id="start-design" class="btn btn-primary">Masterkarte gestalten</button>
@@ -129,6 +151,19 @@
                             </div>
 
                             <div class="control-section">
+                                <h4>Canvas-Einstellungen</h4>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="snap-to-grid" checked>
+                                    <span>An Raster ausrichten</span>
+                                </label>
+                                <div class="control-group">
+                                    <label>Rastergröße:</label>
+                                    <input type="range" id="grid-size" min="5" max="20" value="10">
+                                    <span id="grid-size-value">10px</span>
+                                </div>
+                            </div>
+
+                            <div class="control-section">
                                 <h4>Optionen</h4>
                                 <label class="checkbox-label">
                                     <input type="checkbox" id="show-cut-marks">
@@ -149,7 +184,14 @@
                     <div class="design-canvas">
                         <canvas id="card-preview" width="400" height="600"></canvas>
                         <div class="canvas-info">
-                            <span id="canvas-info-text">Klicken Sie auf die Karte, um Elemente zu positionieren</span>
+                            <span id="canvas-info-text">Klicken Sie auf Elemente zum Auswählen • Pfeiltasten zum Verschieben • Entf zum Löschen</span>
+                        </div>
+                        
+                        <div class="canvas-toolbar">
+                            <button class="btn btn-sm" id="duplicate-element" disabled>Element duplizieren</button>
+                            <button class="btn btn-sm" id="align-left" disabled>Links ausrichten</button>
+                            <button class="btn btn-sm" id="align-center" disabled>Zentrieren</button>
+                            <button class="btn btn-sm" id="align-right" disabled>Rechts ausrichten</button>
                         </div>
                     </div>
                 </div>

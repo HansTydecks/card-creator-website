@@ -6,6 +6,7 @@ class CardCreator {
             paperSize: 'a4',
             layout: '2x2',
             cardCount: 4,
+            template: 'blank',
             masterCard: {
                 front: {
                     backgroundColor: '#ffffff',
@@ -31,6 +32,11 @@ class CardCreator {
         this.currentSide = 'front';
         this.canvas = null;
         this.ctx = null;
+        this.selectedElement = null;
+        this.isDragging = false;
+        this.dragOffset = { x: 0, y: 0 };
+        this.snapToGrid = true;
+        this.gridSize = 10;
         
         this.init();
     }
@@ -67,6 +73,15 @@ class CardCreator {
         // Card count
         document.getElementById('card-count').addEventListener('change', (e) => {
             this.project.cardCount = parseInt(e.target.value);
+        });
+
+        // Template selection
+        document.querySelectorAll('.template-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                document.querySelectorAll('.template-option').forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+                this.project.template = option.dataset.template;
+            });
         });
 
         // Master Design
@@ -109,6 +124,33 @@ class CardCreator {
             this.addImageField();
         });
 
+        // Canvas settings
+        document.getElementById('snap-to-grid').addEventListener('change', (e) => {
+            this.snapToGrid = e.target.checked;
+        });
+
+        document.getElementById('grid-size').addEventListener('input', (e) => {
+            this.gridSize = parseInt(e.target.value);
+            document.getElementById('grid-size-value').textContent = `${e.target.value}px`;
+        });
+
+        // Canvas toolbar
+        document.getElementById('duplicate-element').addEventListener('click', () => {
+            this.duplicateElement();
+        });
+
+        document.getElementById('align-left').addEventListener('click', () => {
+            this.alignElement('left');
+        });
+
+        document.getElementById('align-center').addEventListener('click', () => {
+            this.alignElement('center');
+        });
+
+        document.getElementById('align-right').addEventListener('click', () => {
+            this.alignElement('right');
+        });
+
         // Navigation
         document.getElementById('back-to-setup').addEventListener('click', () => {
             this.showStep('project-setup');
@@ -140,8 +182,30 @@ class CardCreator {
         });
 
         // Canvas click for positioning elements
-        document.getElementById('card-preview').addEventListener('click', (e) => {
+        const canvas = document.getElementById('card-preview');
+        canvas.addEventListener('click', (e) => {
             this.handleCanvasClick(e);
+        });
+        
+        canvas.addEventListener('mousedown', (e) => {
+            this.handleCanvasMouseDown(e);
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            this.handleCanvasMouseMove(e);
+        });
+        
+        canvas.addEventListener('mouseup', (e) => {
+            this.handleCanvasMouseUp(e);
+        });
+        
+        canvas.addEventListener('mouseleave', (e) => {
+            this.handleCanvasMouseUp(e);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            this.handleKeyDown(e);
         });
     }
 
@@ -149,11 +213,85 @@ class CardCreator {
         // Paper size is already collected via radio button event
         // Layout is already collected via click event
         // Card count is already collected via change event
+        // Template is already collected via click event
         
         // Set default layout selection if none selected
         if (!document.querySelector('.layout-option.selected')) {
             document.querySelector('.layout-option[data-layout="2x2"]').classList.add('selected');
             this.project.layout = '2x2';
+        }
+
+        // Set default template if none selected
+        if (!document.querySelector('.template-option.selected')) {
+            document.querySelector('.template-option[data-template="blank"]').classList.add('selected');
+            this.project.template = 'blank';
+        }
+
+        // Apply template
+        this.applyTemplate();
+    }
+
+    applyTemplate() {
+        const templates = {
+            blank: {
+                front: { textFields: [], imageFields: [] },
+                back: { textFields: [], imageFields: [] }
+            },
+            flashcard: {
+                front: {
+                    textFields: [
+                        { x: 20, y: 20, width: 160, height: 100, fontSize: 18, fontFamily: 'Arial', fontWeight: 'bold', textAlign: 'center', color: '#000000', placeholder: 'Frage' }
+                    ],
+                    imageFields: []
+                },
+                back: {
+                    textFields: [
+                        { x: 20, y: 20, width: 160, height: 100, fontSize: 16, fontFamily: 'Arial', fontWeight: 'normal', textAlign: 'center', color: '#000000', placeholder: 'Antwort' }
+                    ],
+                    imageFields: []
+                }
+            },
+            quiz: {
+                front: {
+                    textFields: [
+                        { x: 20, y: 20, width: 160, height: 30, fontSize: 14, fontFamily: 'Arial', fontWeight: 'bold', textAlign: 'left', color: '#000000', placeholder: 'Frage' },
+                        { x: 20, y: 60, width: 160, height: 20, fontSize: 12, fontFamily: 'Arial', fontWeight: 'normal', textAlign: 'left', color: '#000000', placeholder: 'A)' },
+                        { x: 20, y: 85, width: 160, height: 20, fontSize: 12, fontFamily: 'Arial', fontWeight: 'normal', textAlign: 'left', color: '#000000', placeholder: 'B)' },
+                        { x: 20, y: 110, width: 160, height: 20, fontSize: 12, fontFamily: 'Arial', fontWeight: 'normal', textAlign: 'left', color: '#000000', placeholder: 'C)' }
+                    ],
+                    imageFields: []
+                },
+                back: {
+                    textFields: [
+                        { x: 20, y: 50, width: 160, height: 30, fontSize: 16, fontFamily: 'Arial', fontWeight: 'bold', textAlign: 'center', color: '#28a745', placeholder: 'Richtige Antwort' }
+                    ],
+                    imageFields: []
+                }
+            },
+            vocabulary: {
+                front: {
+                    textFields: [
+                        { x: 20, y: 30, width: 160, height: 40, fontSize: 20, fontFamily: 'Arial', fontWeight: 'bold', textAlign: 'center', color: '#000000', placeholder: 'Deutsch' }
+                    ],
+                    imageFields: [
+                        { x: 60, y: 80, width: 80, height: 60, alignment: 'center', placeholder: 'Bild', imageData: null, maintainAspectRatio: true }
+                    ]
+                },
+                back: {
+                    textFields: [
+                        { x: 20, y: 50, width: 160, height: 40, fontSize: 18, fontFamily: 'Arial', fontWeight: 'normal', textAlign: 'center', color: '#0c5460', placeholder: 'English' }
+                    ],
+                    imageFields: []
+                }
+            }
+        };
+
+        const template = templates[this.project.template];
+        if (template) {
+            this.project.masterCard.front.textFields = [...template.front.textFields];
+            this.project.masterCard.front.imageFields = [...template.front.imageFields];
+            this.project.masterCard.back.textFields = [...template.back.textFields];
+            this.project.masterCard.back.imageFields = [...template.back.imageFields];
         }
     }
 
@@ -258,7 +396,9 @@ class CardCreator {
             width: 80,
             height: 60,
             alignment: 'center',
-            placeholder: 'Bild'
+            placeholder: 'Bild',
+            imageData: null,
+            maintainAspectRatio: true
         };
         
         sideData.imageFields.push(newField);
@@ -391,9 +531,18 @@ class CardCreator {
         this.ctx.fillText(field.placeholder, x, field.y + field.fontSize);
         
         // Draw field border for preview
-        this.ctx.strokeStyle = 'rgba(102, 126, 234, 0.5)';
-        this.ctx.lineWidth = 1;
+        const isSelected = this.selectedElement && 
+                          this.selectedElement.type === 'text' && 
+                          this.selectedElement.index === this.getCurrentFieldIndex(field, 'text');
+        
+        this.ctx.strokeStyle = isSelected ? '#667eea' : 'rgba(102, 126, 234, 0.3)';
+        this.ctx.lineWidth = isSelected ? 2 : 1;
         this.ctx.strokeRect(field.x, field.y, field.width, field.height);
+        
+        // Draw selection handles if selected
+        if (isSelected) {
+            this.drawSelectionHandles(field);
+        }
     }
 
     drawImageField(field) {
@@ -401,8 +550,12 @@ class CardCreator {
         this.ctx.fillStyle = '#f8f9fa';
         this.ctx.fillRect(field.x, field.y, field.width, field.height);
         
-        this.ctx.strokeStyle = 'rgba(102, 126, 234, 0.5)';
-        this.ctx.lineWidth = 2;
+        const isSelected = this.selectedElement && 
+                          this.selectedElement.type === 'image' && 
+                          this.selectedElement.index === this.getCurrentFieldIndex(field, 'image');
+        
+        this.ctx.strokeStyle = isSelected ? '#667eea' : 'rgba(102, 126, 234, 0.3)';
+        this.ctx.lineWidth = isSelected ? 2 : 1;
         this.ctx.strokeRect(field.x, field.y, field.width, field.height);
         
         // Draw placeholder text
@@ -410,6 +563,34 @@ class CardCreator {
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(field.placeholder, field.x + field.width / 2, field.y + field.height / 2 + 4);
+        
+        // Draw selection handles if selected
+        if (isSelected) {
+            this.drawSelectionHandles(field);
+        }
+    }
+
+    drawSelectionHandles(field) {
+        const handleSize = 6;
+        this.ctx.fillStyle = '#667eea';
+        
+        // Corner handles
+        const handles = [
+            { x: field.x - handleSize/2, y: field.y - handleSize/2 },
+            { x: field.x + field.width - handleSize/2, y: field.y - handleSize/2 },
+            { x: field.x - handleSize/2, y: field.y + field.height - handleSize/2 },
+            { x: field.x + field.width - handleSize/2, y: field.y + field.height - handleSize/2 }
+        ];
+        
+        handles.forEach(handle => {
+            this.ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
+        });
+    }
+
+    getCurrentFieldIndex(field, type) {
+        const sideData = this.project.masterCard[this.currentSide];
+        const fields = type === 'text' ? sideData.textFields : sideData.imageFields;
+        return fields.indexOf(field);
     }
 
     drawCutMarks() {
@@ -464,10 +645,220 @@ class CardCreator {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         
-        // For now, just log the click position
-        // In a full implementation, this would handle element positioning
-        console.log(`Canvas clicked at: ${x}, ${y}`);
-        document.getElementById('canvas-info-text').textContent = `Geklickt bei: ${Math.round(x)}, ${Math.round(y)}`;
+        // Check if we clicked on an element
+        const clickedElement = this.getElementAtPosition(x, y);
+        
+        if (clickedElement) {
+            this.selectElement(clickedElement);
+        } else {
+            this.selectedElement = null;
+            this.updateCanvasPreview();
+        }
+        
+        document.getElementById('canvas-info-text').textContent = 
+            clickedElement ? `Element ausgewählt: ${clickedElement.type} ${clickedElement.index + 1}` 
+                          : `Geklickt bei: ${Math.round(x)}, ${Math.round(y)}`;
+    }
+
+    handleCanvasMouseDown(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const clickedElement = this.getElementAtPosition(x, y);
+        
+        if (clickedElement) {
+            this.selectedElement = clickedElement;
+            this.isDragging = true;
+            const element = this.getElementData(clickedElement);
+            this.dragOffset = {
+                x: x - element.x,
+                y: y - element.y
+            };
+            this.canvas.style.cursor = 'grabbing';
+        }
+    }
+
+    handleCanvasMouseMove(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        if (this.isDragging && this.selectedElement) {
+            const element = this.getElementData(this.selectedElement);
+            let newX = x - this.dragOffset.x;
+            let newY = y - this.dragOffset.y;
+            
+            // Snap to grid if enabled
+            if (this.snapToGrid) {
+                newX = Math.round(newX / this.gridSize) * this.gridSize;
+                newY = Math.round(newY / this.gridSize) * this.gridSize;
+            }
+            
+            // Keep element within canvas bounds
+            newX = Math.max(0, Math.min(this.canvas.width - element.width, newX));
+            newY = Math.max(0, Math.min(this.canvas.height - element.height, newY));
+            
+            element.x = newX;
+            element.y = newY;
+            
+            this.updateCanvasPreview();
+            this.updateFieldsLists();
+            
+            document.getElementById('canvas-info-text').textContent = 
+                `Verschieben: ${Math.round(newX)}, ${Math.round(newY)}`;
+        } else {
+            // Update cursor based on hover
+            const hoveredElement = this.getElementAtPosition(x, y);
+            this.canvas.style.cursor = hoveredElement ? 'grab' : 'default';
+        }
+    }
+
+    handleCanvasMouseUp(e) {
+        if (this.isDragging) {
+            this.isDragging = false;
+            this.canvas.style.cursor = 'default';
+            
+            if (this.selectedElement) {
+                const element = this.getElementData(this.selectedElement);
+                document.getElementById('canvas-info-text').textContent = 
+                    `Element positioniert: ${Math.round(element.x)}, ${Math.round(element.y)}`;
+            }
+        }
+    }
+
+    handleKeyDown(e) {
+        if (!this.selectedElement) return;
+        
+        const element = this.getElementData(this.selectedElement);
+        let moved = false;
+        
+        switch (e.key) {
+            case 'ArrowLeft':
+                element.x = Math.max(0, element.x - (e.shiftKey ? 1 : this.gridSize));
+                moved = true;
+                break;
+            case 'ArrowRight':
+                element.x = Math.min(this.canvas.width - element.width, element.x + (e.shiftKey ? 1 : this.gridSize));
+                moved = true;
+                break;
+            case 'ArrowUp':
+                element.y = Math.max(0, element.y - (e.shiftKey ? 1 : this.gridSize));
+                moved = true;
+                break;
+            case 'ArrowDown':
+                element.y = Math.min(this.canvas.height - element.height, element.y + (e.shiftKey ? 1 : this.gridSize));
+                moved = true;
+                break;
+            case 'Delete':
+                this.removeField(this.selectedElement.type, this.selectedElement.index);
+                this.selectedElement = null;
+                moved = true;
+                break;
+        }
+        
+        if (moved) {
+            e.preventDefault();
+            this.updateCanvasPreview();
+            this.updateFieldsLists();
+        }
+    }
+
+    getElementAtPosition(x, y) {
+        const sideData = this.project.masterCard[this.currentSide];
+        
+        // Check text fields (in reverse order to prioritize top elements)
+        for (let i = sideData.textFields.length - 1; i >= 0; i--) {
+            const field = sideData.textFields[i];
+            if (x >= field.x && x <= field.x + field.width &&
+                y >= field.y && y <= field.y + field.height) {
+                return { type: 'text', index: i };
+            }
+        }
+        
+        // Check image fields
+        for (let i = sideData.imageFields.length - 1; i >= 0; i--) {
+            const field = sideData.imageFields[i];
+            if (x >= field.x && x <= field.x + field.width &&
+                y >= field.y && y <= field.y + field.height) {
+                return { type: 'image', index: i };
+            }
+        }
+        
+        return null;
+    }
+
+    getElementData(elementRef) {
+        const sideData = this.project.masterCard[this.currentSide];
+        return elementRef.type === 'text' 
+            ? sideData.textFields[elementRef.index]
+            : sideData.imageFields[elementRef.index];
+    }
+
+    selectElement(elementRef) {
+        this.selectedElement = elementRef;
+        this.updateCanvasPreview();
+        this.showElementProperties(elementRef);
+        this.updateToolbarState();
+    }
+
+    showElementProperties(elementRef) {
+        // This would show a properties panel for the selected element
+        const element = this.getElementData(elementRef);
+        console.log('Selected element:', elementRef, element);
+        
+        // Update canvas info
+        document.getElementById('canvas-info-text').textContent = 
+            `Ausgewählt: ${elementRef.type === 'text' ? 'Text' : 'Bild'} ${elementRef.index + 1} (${element.x}, ${element.y})`;
+    }
+
+    updateToolbarState() {
+        const hasSelection = this.selectedElement !== null;
+        document.getElementById('duplicate-element').disabled = !hasSelection;
+        document.getElementById('align-left').disabled = !hasSelection;
+        document.getElementById('align-center').disabled = !hasSelection;
+        document.getElementById('align-right').disabled = !hasSelection;
+    }
+
+    duplicateElement() {
+        if (!this.selectedElement) return;
+        
+        const element = this.getElementData(this.selectedElement);
+        const sideData = this.project.masterCard[this.currentSide];
+        
+        const newElement = JSON.parse(JSON.stringify(element));
+        newElement.x += 20;
+        newElement.y += 20;
+        
+        if (this.selectedElement.type === 'text') {
+            sideData.textFields.push(newElement);
+        } else {
+            sideData.imageFields.push(newElement);
+        }
+        
+        this.updateFieldsLists();
+        this.updateCanvasPreview();
+    }
+
+    alignElement(alignment) {
+        if (!this.selectedElement) return;
+        
+        const element = this.getElementData(this.selectedElement);
+        
+        switch (alignment) {
+            case 'left':
+                element.x = 10;
+                break;
+            case 'center':
+                element.x = (this.canvas.width - element.width) / 2;
+                break;
+            case 'right':
+                element.x = this.canvas.width - element.width - 10;
+                break;
+        }
+        
+        this.updateCanvasPreview();
+        this.updateFieldsLists();
     }
 
     initializeCards() {
@@ -571,9 +962,51 @@ class CardCreator {
     updateCardField(cardIndex, side, type, fieldIndex, value) {
         if (type === 'text') {
             this.project.cards[cardIndex][side].textFields[fieldIndex] = value;
-        } else {
-            this.project.cards[cardIndex][side].imageFields[fieldIndex] = value;
+        } else if (type === 'image') {
+            if (value instanceof File) {
+                this.loadImageFile(value, (imageData) => {
+                    this.project.cards[cardIndex][side].imageFields[fieldIndex] = imageData;
+                });
+            } else {
+                this.project.cards[cardIndex][side].imageFields[fieldIndex] = value;
+            }
         }
+    }
+
+    loadImageFile(file, callback) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Resize image to manageable size
+                const maxWidth = 400;
+                const maxHeight = 400;
+                let { width, height } = img;
+                
+                if (width > maxWidth || height > maxHeight) {
+                    const ratio = Math.min(maxWidth / width, maxHeight / height);
+                    width *= ratio;
+                    height *= ratio;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                callback({
+                    dataUrl: canvas.toDataURL('image/jpeg', 0.8),
+                    originalWidth: img.width,
+                    originalHeight: img.height,
+                    resizedWidth: width,
+                    resizedHeight: height
+                });
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
     }
 
     generatePreview() {
@@ -587,10 +1020,7 @@ class CardCreator {
         loadingOverlay.classList.remove('hidden');
         
         try {
-            // Simulate PDF generation
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // This is where you'd use jsPDF to generate the actual PDF
+            // Generate PDF with proper layout
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({
                 orientation: 'portrait',
@@ -598,12 +1028,79 @@ class CardCreator {
                 format: this.project.paperSize
             });
             
-            pdf.text('Card Creator - Generated Cards', 20, 20);
-            pdf.text(`Layout: ${this.project.layout}`, 20, 30);
-            pdf.text(`Paper Size: ${this.project.paperSize.toUpperCase()}`, 20, 40);
-            pdf.text(`Number of Cards: ${this.project.cardCount}`, 20, 50);
+            // Calculate card dimensions and positions
+            const pageSize = this.getPageDimensions();
+            const cardLayout = this.getCardLayout();
+            const cardDimensions = this.calculateCardDimensions(pageSize, cardLayout);
             
-            pdf.save('cards.pdf');
+            let currentPage = 0;
+            let cardsOnCurrentPage = 0;
+            
+            for (let cardIndex = 0; cardIndex < this.project.cardCount; cardIndex++) {
+                const card = this.project.cards[cardIndex];
+                
+                // Calculate position on page
+                const row = Math.floor(cardsOnCurrentPage / cardLayout.cols);
+                const col = cardsOnCurrentPage % cardLayout.cols;
+                
+                const x = cardDimensions.margin + col * (cardDimensions.width + cardDimensions.spacing);
+                const y = cardDimensions.margin + row * (cardDimensions.height + cardDimensions.spacing);
+                
+                // Render front side
+                await this.renderCardToPDF(pdf, card, 'front', x, y, cardDimensions);
+                
+                cardsOnCurrentPage++;
+                
+                // Check if we need a new page
+                if (cardsOnCurrentPage >= cardLayout.cardsPerPage) {
+                    pdf.addPage();
+                    cardsOnCurrentPage = 0;
+                    currentPage++;
+                    
+                    // Add back sides on new page
+                    for (let backIndex = cardIndex - cardLayout.cardsPerPage + 1; backIndex <= cardIndex; backIndex++) {
+                        const backCard = this.project.cards[backIndex];
+                        const backRow = Math.floor((backIndex - (cardIndex - cardLayout.cardsPerPage + 1)) / cardLayout.cols);
+                        const backCol = (cardLayout.cols - 1) - ((backIndex - (cardIndex - cardLayout.cardsPerPage + 1)) % cardLayout.cols); // Mirror for back side
+                        
+                        const backX = cardDimensions.margin + backCol * (cardDimensions.width + cardDimensions.spacing);
+                        const backY = cardDimensions.margin + backRow * (cardDimensions.height + cardDimensions.spacing);
+                        
+                        await this.renderCardToPDF(pdf, backCard, 'back', backX, backY, cardDimensions);
+                    }
+                    
+                    if (cardIndex < this.project.cardCount - 1) {
+                        pdf.addPage();
+                    }
+                }
+            }
+            
+            // Handle remaining back sides if needed
+            if (cardsOnCurrentPage > 0) {
+                pdf.addPage();
+                for (let backIndex = this.project.cardCount - cardsOnCurrentPage; backIndex < this.project.cardCount; backIndex++) {
+                    const backCard = this.project.cards[backIndex];
+                    const adjustedIndex = backIndex - (this.project.cardCount - cardsOnCurrentPage);
+                    const backRow = Math.floor(adjustedIndex / cardLayout.cols);
+                    const backCol = (cardLayout.cols - 1) - (adjustedIndex % cardLayout.cols); // Mirror for back side
+                    
+                    const backX = cardDimensions.margin + backCol * (cardDimensions.width + cardDimensions.spacing);
+                    const backY = cardDimensions.margin + backRow * (cardDimensions.height + cardDimensions.spacing);
+                    
+                    await this.renderCardToPDF(pdf, backCard, 'back', backX, backY, cardDimensions);
+                }
+            }
+            
+            // Add metadata
+            pdf.setProperties({
+                title: 'Card Creator - Lernkarten',
+                subject: 'Generierte Lernkarten',
+                author: 'Card Creator App',
+                creator: 'Card Creator App'
+            });
+            
+            const filename = `lernkarten_${new Date().toISOString().slice(0, 10)}.pdf`;
+            pdf.save(filename);
             
         } catch (error) {
             console.error('Error generating PDF:', error);
@@ -611,6 +1108,124 @@ class CardCreator {
         } finally {
             loadingOverlay.classList.add('hidden');
         }
+    }
+
+    getPageDimensions() {
+        // Return page dimensions in mm
+        return this.project.paperSize === 'a4' 
+            ? { width: 210, height: 297 }
+            : { width: 297, height: 420 };
+    }
+
+    getCardLayout() {
+        const layouts = {
+            '2x2': { rows: 2, cols: 2, cardsPerPage: 4 },
+            '2x4': { rows: 4, cols: 2, cardsPerPage: 8 },
+            '3x3': { rows: 3, cols: 3, cardsPerPage: 9 }
+        };
+        return layouts[this.project.layout];
+    }
+
+    calculateCardDimensions(pageSize, layout) {
+        const margin = 10; // mm
+        const spacing = 5; // mm between cards
+        
+        const availableWidth = pageSize.width - (2 * margin) - ((layout.cols - 1) * spacing);
+        const availableHeight = pageSize.height - (2 * margin) - ((layout.rows - 1) * spacing);
+        
+        return {
+            width: availableWidth / layout.cols,
+            height: availableHeight / layout.rows,
+            margin: margin,
+            spacing: spacing
+        };
+    }
+
+    async renderCardToPDF(pdf, card, side, x, y, dimensions) {
+        const masterSide = this.project.masterCard[side];
+        
+        // Draw background
+        pdf.setFillColor(masterSide.backgroundColor);
+        pdf.rect(x, y, dimensions.width, dimensions.height, 'F');
+        
+        // Draw cut marks if enabled
+        if (masterSide.showCutMarks) {
+            this.drawCutMarksToPDF(pdf, x, y, dimensions);
+        }
+        
+        // Draw text fields
+        masterSide.textFields.forEach((field, index) => {
+            const content = card[side].textFields[index] || field.placeholder;
+            this.drawTextFieldToPDF(pdf, field, content, x, y, dimensions);
+        });
+        
+        // Draw image fields
+        masterSide.imageFields.forEach((field, index) => {
+            const imageData = card[side].imageFields[index];
+            this.drawImageFieldToPDF(pdf, field, imageData, x, y, dimensions);
+        });
+        
+        // Draw card number if enabled
+        if (masterSide.showCardNumbers) {
+            this.drawCardNumberToPDF(pdf, card.id, x, y, dimensions);
+        }
+    }
+
+    drawTextFieldToPDF(pdf, field, content, cardX, cardY, cardDimensions) {
+        const scaleX = cardDimensions.width / this.canvas.width;
+        const scaleY = cardDimensions.height / this.canvas.height;
+        
+        const x = cardX + (field.x * scaleX);
+        const y = cardY + (field.y * scaleY) + (field.fontSize * scaleY * 0.8);
+        
+        pdf.setTextColor(field.color);
+        pdf.setFontSize(field.fontSize * scaleY * 0.75); // Convert to PDF units
+        pdf.text(content, x, y);
+    }
+
+    drawImageFieldToPDF(pdf, field, imageData, cardX, cardY, cardDimensions) {
+        if (!imageData || !imageData.dataUrl) return;
+        
+        const scaleX = cardDimensions.width / this.canvas.width;
+        const scaleY = cardDimensions.height / this.canvas.height;
+        
+        const x = cardX + (field.x * scaleX);
+        const y = cardY + (field.y * scaleY);
+        const width = field.width * scaleX;
+        const height = field.height * scaleY;
+        
+        try {
+            pdf.addImage(imageData.dataUrl, 'JPEG', x, y, width, height);
+        } catch (error) {
+            console.warn('Error adding image to PDF:', error);
+        }
+    }
+
+    drawCutMarksToPDF(pdf, x, y, dimensions) {
+        const markLength = 3;
+        const offset = 2;
+        
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setLineWidth(0.1);
+        
+        // Corner marks
+        pdf.line(x - offset, y - offset, x - offset + markLength, y - offset);
+        pdf.line(x - offset, y - offset, x - offset, y - offset + markLength);
+        
+        pdf.line(x + dimensions.width + offset, y - offset, x + dimensions.width + offset - markLength, y - offset);
+        pdf.line(x + dimensions.width + offset, y - offset, x + dimensions.width + offset, y - offset + markLength);
+        
+        pdf.line(x - offset, y + dimensions.height + offset, x - offset + markLength, y + dimensions.height + offset);
+        pdf.line(x - offset, y + dimensions.height + offset, x - offset, y + dimensions.height + offset - markLength);
+        
+        pdf.line(x + dimensions.width + offset, y + dimensions.height + offset, x + dimensions.width + offset - markLength, y + dimensions.height + offset);
+        pdf.line(x + dimensions.width + offset, y + dimensions.height + offset, x + dimensions.width + offset, y + dimensions.height + offset - markLength);
+    }
+
+    drawCardNumberToPDF(pdf, cardNumber, x, y, dimensions) {
+        pdf.setTextColor(100, 100, 100);
+        pdf.setFontSize(6);
+        pdf.text(`#${cardNumber}`, x + 1, y + dimensions.height - 1);
     }
 
     newProject() {

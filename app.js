@@ -1818,14 +1818,40 @@ class CardCreator {
     exportAsPNG() {
         this.showLoadingOverlay('PNG wird generiert...');
         
-        setTimeout(() => {
+        setTimeout(async () => {
             try {
-                const canvas = this.canvas;
-                const link = document.createElement('a');
-                link.download = `karte-${this.currentSide}-${new Date().toISOString().slice(0, 10)}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
+                if (this.project.cards.length === 0) {
+                    // Export current master card preview
+                    const canvas = this.canvas;
+                    const link = document.createElement('a');
+                    link.download = `masterkarte-${this.currentSide}-${new Date().toISOString().slice(0, 10)}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                } else {
+                    // Export all cards
+                    for (let i = 0; i < this.project.cards.length; i++) {
+                        const card = this.project.cards[i];
+                        
+                        // Export front
+                        const frontCanvas = await this.renderCardToCanvas(card, 'front');
+                        const frontLink = document.createElement('a');
+                        frontLink.download = `karte-${card.id}-vorne.png`;
+                        frontLink.href = frontCanvas.toDataURL('image/png');
+                        frontLink.click();
+                        
+                        // Export back
+                        const backCanvas = await this.renderCardToCanvas(card, 'back');
+                        const backLink = document.createElement('a');
+                        backLink.download = `karte-${card.id}-hinten.png`;
+                        backLink.href = backCanvas.toDataURL('image/png');
+                        backLink.click();
+                        
+                        // Small delay between downloads
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                    }
+                }
             } catch (error) {
+                console.error('PNG-Export Fehler:', error);
                 alert('Fehler beim PNG-Export: ' + error.message);
             } finally {
                 this.hideLoadingOverlay();
@@ -1901,21 +1927,346 @@ class CardCreator {
     }
 
     exportAsWord() {
-        alert('Word-Export wird in einer zukünftigen Version implementiert.');
+        if (this.project.cards.length === 0) {
+            alert('Keine Karten vorhanden. Bitte erstellen Sie zuerst Karten in Schritt 3.');
+            return;
+        }
+
+        this.showLoadingOverlay('Word-Dokument wird generiert...');
+        
+        setTimeout(async () => {
+            try {
+                if (typeof docx === 'undefined') {
+                    throw new Error('docx Bibliothek nicht geladen');
+                }
+
+                const doc = new docx.Document({
+                    sections: [{
+                        properties: {},
+                        children: await this.generateWordContent()
+                    }]
+                });
+
+                const blob = await docx.Packer.toBlob(doc);
+                const fileName = `karten-${new Date().toISOString().slice(0, 10)}.docx`;
+                
+                if (typeof saveAs !== 'undefined') {
+                    saveAs(blob, fileName);
+                } else {
+                    // Fallback for manual download
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = fileName;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                }
+            } catch (error) {
+                console.error('Word-Export Fehler:', error);
+                alert('Fehler beim Word-Export: ' + error.message);
+            } finally {
+                this.hideLoadingOverlay();
+            }
+        }, 500);
+    }
+
+    async generateWordContent() {
+        const content = [];
+        
+        // Title
+        content.push(
+            new docx.Paragraph({
+                children: [
+                    new docx.TextRun({
+                        text: "Lernkarten Export",
+                        bold: true,
+                        size: 32
+                    })
+                ],
+                spacing: { after: 400 }
+            })
+        );
+
+        // Project info
+        content.push(
+            new docx.Paragraph({
+                children: [
+                    new docx.TextRun({
+                        text: `Projekt: ${this.project.template} Karten`,
+                        size: 24
+                    })
+                ],
+                spacing: { after: 200 }
+            })
+        );
+
+        content.push(
+            new docx.Paragraph({
+                children: [
+                    new docx.TextRun({
+                        text: `Generiert am: ${new Date().toLocaleDateString('de-DE')}`,
+                        size: 20,
+                        italics: true
+                    })
+                ],
+                spacing: { after: 400 }
+            })
+        );
+
+        // Add cards
+        for (let i = 0; i < this.project.cards.length; i++) {
+            const card = this.project.cards[i];
+            
+            // Card header
+            content.push(
+                new docx.Paragraph({
+                    children: [
+                        new docx.TextRun({
+                            text: `Karte ${card.id}`,
+                            bold: true,
+                            size: 28
+                        })
+                    ],
+                    spacing: { before: 400, after: 200 }
+                })
+            );
+
+            // Front side
+            content.push(
+                new docx.Paragraph({
+                    children: [
+                        new docx.TextRun({
+                            text: "Vorderseite:",
+                            bold: true,
+                            size: 24
+                        })
+                    ],
+                    spacing: { after: 100 }
+                })
+            );
+
+            // Add front side content
+            const frontContent = this.extractCardContentForWord(card.front);
+            content.push(...frontContent);
+
+            // Back side
+            content.push(
+                new docx.Paragraph({
+                    children: [
+                        new docx.TextRun({
+                            text: "Rückseite:",
+                            bold: true,
+                            size: 24
+                        })
+                    ],
+                    spacing: { before: 200, after: 100 }
+                })
+            );
+
+            // Add back side content
+            const backContent = this.extractCardContentForWord(card.back);
+            content.push(...backContent);
+
+            // Page break after each card (except last)
+            if (i < this.project.cards.length - 1) {
+                content.push(
+                    new docx.Paragraph({
+                        children: [new docx.PageBreak()]
+                    })
+                );
+            }
+        }
+
+        return content;
+    }
+
+    extractCardContentForWord(sideData) {
+        const content = [];
+        
+        // Text fields
+        if (sideData.textFields && sideData.textFields.length > 0) {
+            sideData.textFields.forEach((text, index) => {
+                if (text && text.trim()) {
+                    content.push(
+                        new docx.Paragraph({
+                            children: [
+                                new docx.TextRun({
+                                    text: `• ${text}`,
+                                    size: 22
+                                })
+                            ],
+                            spacing: { after: 100 }
+                        })
+                    );
+                }
+            });
+        }
+
+        // Image placeholders
+        if (sideData.imageFields && sideData.imageFields.length > 0) {
+            sideData.imageFields.forEach((imageData, index) => {
+                content.push(
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: `[Bild ${index + 1}]`,
+                                italics: true,
+                                size: 20,
+                                color: "666666"
+                            })
+                        ],
+                        spacing: { after: 100 }
+                    })
+                );
+            });
+        }
+
+        // If no content, add placeholder
+        if (content.length === 0) {
+            content.push(
+                new docx.Paragraph({
+                    children: [
+                        new docx.TextRun({
+                            text: "(Keine Inhalte)",
+                            italics: true,
+                            size: 20,
+                            color: "999999"
+                        })
+                    ],
+                    spacing: { after: 100 }
+                })
+            );
+        }
+
+        return content;
     }
 
     exportAsImages() {
+        if (this.project.cards.length === 0) {
+            alert('Keine Karten vorhanden. Bitte erstellen Sie zuerst Karten in Schritt 3.');
+            return;
+        }
+
         this.showLoadingOverlay('Bilder werden generiert...');
         
-        setTimeout(() => {
+        setTimeout(async () => {
             try {
-                alert('Bilder-Export wird in einer zukünftigen Version implementiert.');
+                const zip = await this.generateImagesZip();
+                const fileName = `karten-bilder-${new Date().toISOString().slice(0, 10)}.zip`;
+                
+                if (typeof saveAs !== 'undefined') {
+                    saveAs(zip, fileName);
+                } else {
+                    // Fallback for manual download
+                    const url = URL.createObjectURL(zip);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = fileName;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                }
             } catch (error) {
+                console.error('Bilder-Export Fehler:', error);
                 alert('Fehler beim Bilder-Export: ' + error.message);
             } finally {
                 this.hideLoadingOverlay();
             }
-        }, 1000);
+        }, 500);
+    }
+
+    async generateImagesZip() {
+        if (typeof JSZip === 'undefined') {
+            // Fallback: individual downloads
+            return this.generateImagesIndividually();
+        }
+
+        const zip = new JSZip();
+        const folder = zip.folder("karten-bilder");
+        
+        for (let i = 0; i < this.project.cards.length; i++) {
+            const card = this.project.cards[i];
+            
+            // Generate front side image
+            const frontCanvas = await this.renderCardToCanvas(card, 'front');
+            const frontBlob = await this.canvasToBlob(frontCanvas);
+            folder.file(`karte-${card.id}-vorne.png`, frontBlob);
+            
+            // Generate back side image
+            const backCanvas = await this.renderCardToCanvas(card, 'back');
+            const backBlob = await this.canvasToBlob(backCanvas);
+            folder.file(`karte-${card.id}-hinten.png`, backBlob);
+        }
+
+        // Add README file
+        const readmeContent = `Lernkarten Export
+        
+Generiert am: ${new Date().toLocaleDateString('de-DE')}
+Projekt: ${this.project.template} Karten
+Anzahl Karten: ${this.project.cards.length}
+Format: ${this.project.paperSize.toUpperCase()} ${this.project.layout}
+
+Dateien:
+${this.project.cards.map(card => 
+    `- karte-${card.id}-vorne.png\n- karte-${card.id}-hinten.png`
+).join('\n')}
+
+Erstellt mit Card Creator`;
+
+        folder.file("README.txt", readmeContent);
+
+        return await zip.generateAsync({ type: "blob" });
+    }
+
+    async generateImagesIndividually() {
+        // Fallback for when JSZip is not available
+        for (let i = 0; i < this.project.cards.length; i++) {
+            const card = this.project.cards[i];
+            
+            // Generate front side image
+            const frontCanvas = await this.renderCardToCanvas(card, 'front');
+            const frontBlob = await this.canvasToBlob(frontCanvas);
+            const frontUrl = URL.createObjectURL(frontBlob);
+            const frontLink = document.createElement('a');
+            frontLink.href = frontUrl;
+            frontLink.download = `karte-${card.id}-vorne.png`;
+            frontLink.click();
+            URL.revokeObjectURL(frontUrl);
+            
+            // Generate back side image
+            const backCanvas = await this.renderCardToCanvas(card, 'back');
+            const backBlob = await this.canvasToBlob(backCanvas);
+            const backUrl = URL.createObjectURL(backBlob);
+            const backLink = document.createElement('a');
+            backLink.href = backUrl;
+            backLink.download = `karte-${card.id}-hinten.png`;
+            backLink.click();
+            URL.revokeObjectURL(backUrl);
+            
+            // Small delay between downloads
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
+        // Return a dummy blob for consistency
+        return new Blob(['Cards exported as individual images'], { type: 'text/plain' });
+    }
+
+    async renderCardToCanvas(card, side) {
+        const canvas = document.createElement('canvas');
+        const cardSize = this.getCardSize();
+        canvas.width = cardSize.width;
+        canvas.height = cardSize.height;
+        const ctx = canvas.getContext('2d');
+
+        // Render the card
+        this.renderSpecificCard(ctx, card, side, 0, 0, cardSize);
+        
+        return canvas;
+    }
+
+    canvasToBlob(canvas) {
+        return new Promise((resolve) => {
+            canvas.toBlob(resolve, 'image/png');
+        });
     }
 
     showLoadingOverlay(text) {

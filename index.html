@@ -334,8 +334,8 @@
                 <div class="step-actions">
                     <button id="back-to-master" class="btn btn-secondary">← Masterkarte</button>
                     <div class="step-actions-right">
-                        <button id="export-png" class="btn btn-outline">🖼️ PNG Export</button>
-                        <button id="export-svg" class="btn btn-outline">📐 SVG Export</button>
+                        <button id="export-png" class="btn btn-outline">🖼️ PNG Export (alle Karten)</button>
+                        <button id="export-svg" class="btn btn-outline">📐 SVG Export (Masterkarte)</button>
                         <button id="generate-preview" class="btn btn-success">Vorschau generieren</button>
                         <button id="download-pdf" class="btn btn-primary">PDF herunterladen</button>
                     </div>
@@ -349,8 +349,8 @@
                     <div class="preview-controls">
                         <button id="preview-pdf" class="btn btn-primary">PDF Vorschau</button>
                         <button id="download-final-pdf" class="btn btn-success">PDF herunterladen</button>
-                        <button id="download-word" class="btn btn-secondary">📄 Word Export</button>
-                        <button id="download-images" class="btn btn-outline">🖼️ Bilder Export</button>
+                        <button id="download-word" class="btn btn-secondary">📄 Word Export (alle Karten)</button>
+                        <button id="download-images" class="btn btn-outline">�️ Bilder ZIP (alle Karten)</button>
                     </div>
                     <div class="preview-container">
                         <iframe id="pdf-preview" width="100%" height="600px"></iframe>
@@ -387,6 +387,9 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/7.8.2/docx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="app.js"></script>
 </body>

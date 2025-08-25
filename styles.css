@@ -1,0 +1,529 @@
+/* Card Creator - Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+}
+
+.app-header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+}
+
+.app-header h1 {
+    font-size: 2.5rem;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.app-header p {
+    color: #7f8c8d;
+    font-size: 1.1rem;
+}
+
+.main-content {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+/* Steps */
+.step {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    display: none;
+}
+
+.step.active {
+    display: block;
+}
+
+.step h2 {
+    color: #2c3e50;
+    margin-bottom: 2rem;
+    font-size: 1.8rem;
+}
+
+/* Project Setup */
+.setup-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.setup-card {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    transition: border-color 0.3s;
+}
+
+.setup-card:hover {
+    border-color: #667eea;
+}
+
+.setup-card h3 {
+    color: #495057;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: background-color 0.3s;
+}
+
+.radio-group label:hover {
+    background-color: rgba(102, 126, 234, 0.1);
+}
+
+.radio-group input[type="radio"] {
+    margin-right: 0.8rem;
+    accent-color: #667eea;
+}
+
+/* Layout Grid */
+.layout-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1rem;
+}
+
+.layout-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.layout-option:hover,
+.layout-option.selected {
+    border-color: #667eea;
+    background-color: rgba(102, 126, 234, 0.1);
+}
+
+.layout-preview {
+    display: grid;
+    gap: 2px;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: #dee2e6;
+    border-radius: 4px;
+}
+
+.layout-option[data-layout="2x2"] .layout-preview {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.layout-option[data-layout="2x4"] .layout-preview {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.layout-option[data-layout="3x3"] .layout-preview {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.card-preview {
+    background: white;
+    border-radius: 2px;
+    width: 20px;
+    height: 28px;
+}
+
+.card-preview.small {
+    width: 15px;
+    height: 21px;
+}
+
+.card-preview.tiny {
+    width: 12px;
+    height: 17px;
+}
+
+/* Input Styles */
+input[type="number"] {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+input[type="number"]:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+small {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    display: block;
+}
+
+/* Buttons */
+.btn {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5a6fd8;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
+.btn-outline {
+    background: transparent;
+    color: #667eea;
+    border: 2px solid #667eea;
+}
+
+.btn-outline:hover {
+    background: #667eea;
+    color: white;
+}
+
+/* Master Design */
+.design-workspace {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.design-sidebar {
+    background: #f8f9fa;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.design-tabs {
+    display: flex;
+    background: #e9ecef;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 1rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s;
+}
+
+.tab-btn.active {
+    background: #f8f9fa;
+    color: #667eea;
+}
+
+.design-controls {
+    padding: 1.5rem;
+}
+
+.control-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.control-section:last-child {
+    border-bottom: none;
+}
+
+.control-section h4 {
+    color: #495057;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+}
+
+.control-group label {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+input[type="color"] {
+    width: 60px;
+    height: 40px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+select {
+    padding: 0.5rem;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+}
+
+select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 0.8rem;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 0.8rem;
+    accent-color: #667eea;
+}
+
+/* Canvas */
+.design-canvas {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#card-preview {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.canvas-info {
+    margin-top: 1rem;
+    padding: 0.8rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* Step Actions */
+.step-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Cards Edit */
+.cards-workspace {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.cards-list {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+#cards-preview-canvas {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.loading-overlay.hidden {
+    display: none;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-overlay p {
+    color: white;
+    font-size: 1.2rem;
+}
+
+/* Preview */
+.preview-workspace {
+    margin-bottom: 2rem;
+}
+
+.preview-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    justify-content: center;
+}
+
+.preview-container {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .design-workspace {
+        grid-template-columns: 1fr;
+    }
+    
+    .cards-workspace {
+        grid-template-columns: 1fr;
+    }
+    
+    .setup-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .step-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .preview-controls {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+/* Accordion for cards */
+.card-accordion-item {
+    margin-bottom: 0.5rem;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.card-accordion-header {
+    background: #f8f9fa;
+    padding: 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    transition: background-color 0.3s;
+}
+
+.card-accordion-header:hover {
+    background: #e9ecef;
+}
+
+.card-accordion-content {
+    display: none;
+    padding: 1rem;
+    background: white;
+}
+
+.card-accordion-content.active {
+    display: block;
+}
+
+.field-input {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 0.8rem;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+}
+
+.field-label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-weight: 500;
+    color: #495057;
+}

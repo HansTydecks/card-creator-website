@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Creator - Unterrichtsmaterial Designer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196F3">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>Card Creator</h1>
+            <p>Erstelle professionelle Lernkarten für deinen Unterricht</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Step 1: Project Setup -->
+            <section id="project-setup" class="step active">
+                <h2>1. Projekt einrichten</h2>
+                <div class="setup-grid">
+                    <div class="setup-card">
+                        <h3>Papierformat</h3>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="paper-size" value="a4" checked>
+                                <span>A4 (210 × 297 mm)</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="paper-size" value="a3">
+                                <span>A3 (297 × 420 mm)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setup-card">
+                        <h3>Kartenlayout</h3>
+                        <div class="layout-grid">
+                            <div class="layout-option" data-layout="2x2">
+                                <div class="layout-preview">
+                                    <div class="card-preview"></div>
+                                    <div class="card-preview"></div>
+                                    <div class="card-preview"></div>
+                                    <div class="card-preview"></div>
+                                </div>
+                                <span>2×2 Karten</span>
+                            </div>
+                            <div class="layout-option" data-layout="2x4">
+                                <div class="layout-preview">
+                                    <div class="card-preview small"></div>
+                                    <div class="card-preview small"></div>
+                                    <div class="card-preview small"></div>
+                                    <div class="card-preview small"></div>
+                                    <div class="card-preview small"></div>
+                                    <div class="card-preview small"></div>
+                                    <div class="card-preview small"></div>
+                                    <div class="card-preview small"></div>
+                                </div>
+                                <span>2×4 Karten</span>
+                            </div>
+                            <div class="layout-option" data-layout="3x3">
+                                <div class="layout-preview">
+                                    <div class="card-preview tiny"></div>
+                                    <div class="card-preview tiny"></div>
+                                    <div class="card-preview tiny"></div>
+                                    <div class="card-preview tiny"></div>
+                                    <div class="card-preview tiny"></div>
+                                    <div class="card-preview tiny"></div>
+                                    <div class="card-preview tiny"></div>
+                                    <div class="card-preview tiny"></div>
+                                    <div class="card-preview tiny"></div>
+                                </div>
+                                <span>3×3 Karten</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setup-card">
+                        <h3>Anzahl Karten</h3>
+                        <input type="number" id="card-count" min="1" max="100" value="4">
+                        <small>Anzahl der zu erstellenden Karten</small>
+                    </div>
+                </div>
+
+                <button id="start-design" class="btn btn-primary">Masterkarte gestalten</button>
+            </section>
+
+            <!-- Step 2: Master Card Design -->
+            <section id="master-design" class="step">
+                <h2>2. Masterkarte gestalten</h2>
+                <div class="design-workspace">
+                    <div class="design-sidebar">
+                        <div class="design-tabs">
+                            <button class="tab-btn active" data-side="front">Vorderseite</button>
+                            <button class="tab-btn" data-side="back">Rückseite</button>
+                        </div>
+
+                        <div class="design-controls">
+                            <div class="control-section">
+                                <h4>Hintergrund</h4>
+                                <div class="control-group">
+                                    <label>Farbe:</label>
+                                    <input type="color" id="bg-color" value="#ffffff">
+                                </div>
+                                <div class="control-group">
+                                    <label>Textur:</label>
+                                    <select id="bg-texture">
+                                        <option value="none">Keine</option>
+                                        <option value="lines">Linien</option>
+                                        <option value="dots">Punkte</option>
+                                        <option value="grid">Raster</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="control-section">
+                                <h4>Textfelder</h4>
+                                <button class="btn btn-secondary" id="add-text-field">+ Textfeld hinzufügen</button>
+                                <div id="text-fields-list"></div>
+                            </div>
+
+                            <div class="control-section">
+                                <h4>Bildfelder</h4>
+                                <button class="btn btn-secondary" id="add-image-field">+ Bildfeld hinzufügen</button>
+                                <div id="image-fields-list"></div>
+                            </div>
+
+                            <div class="control-section">
+                                <h4>Optionen</h4>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="show-cut-marks">
+                                    <span>Schnittmarkierungen anzeigen</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="show-card-numbers">
+                                    <span>Kartennummern im Rand</span>
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="show-watermark">
+                                    <span>Serien-Wasserzeichen</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="design-canvas">
+                        <canvas id="card-preview" width="400" height="600"></canvas>
+                        <div class="canvas-info">
+                            <span id="canvas-info-text">Klicken Sie auf die Karte, um Elemente zu positionieren</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button id="back-to-setup" class="btn btn-secondary">← Zurück</button>
+                    <button id="continue-to-cards" class="btn btn-primary">Karten bearbeiten →</button>
+                </div>
+            </section>
+
+            <!-- Step 3: Individual Cards -->
+            <section id="cards-edit" class="step">
+                <h2>3. Einzelne Karten bearbeiten</h2>
+                <div class="cards-workspace">
+                    <div class="cards-list">
+                        <div id="cards-accordion"></div>
+                    </div>
+                    <div class="cards-preview">
+                        <canvas id="cards-preview-canvas" width="800" height="600"></canvas>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button id="back-to-master" class="btn btn-secondary">← Masterkarte</button>
+                    <button id="generate-preview" class="btn btn-success">Vorschau generieren</button>
+                    <button id="download-pdf" class="btn btn-primary">PDF herunterladen</button>
+                </div>
+            </section>
+
+            <!-- Step 4: Preview and Download -->
+            <section id="preview-download" class="step">
+                <h2>4. Vorschau und Download</h2>
+                <div class="preview-workspace">
+                    <div class="preview-controls">
+                        <button id="preview-pdf" class="btn btn-primary">PDF Vorschau</button>
+                        <button id="download-final-pdf" class="btn btn-success">PDF herunterladen</button>
+                        <button id="download-word" class="btn btn-secondary">Word herunterladen</button>
+                    </div>
+                    <div class="preview-container">
+                        <iframe id="pdf-preview" width="100%" height="600px"></iframe>
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button id="back-to-cards" class="btn btn-secondary">← Karten bearbeiten</button>
+                    <button id="new-project" class="btn btn-outline">Neues Projekt</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Karten werden generiert...</p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -75,6 +75,14 @@ function initializeProject() {
     const projectNameInput = document.getElementById('projectName');
     const gridInput = document.getElementById('gridInput');
     const gridPresets = document.querySelectorAll('.grid-preset');
+    
+    // New grid controls
+    const gridWidth = document.getElementById('gridWidth');
+    const gridHeight = document.getElementById('gridHeight');
+    const gridWidthSlider = document.getElementById('gridWidthSlider');
+    const gridHeightSlider = document.getElementById('gridHeightSlider');
+    const gridWidthValue = document.getElementById('gridWidthValue');
+    const gridHeightValue = document.getElementById('gridHeightValue');
 
     // Project name
     projectNameInput.addEventListener('input', () => {
@@ -88,16 +96,66 @@ function initializeProject() {
             preset.classList.add('selected');
             
             const gridValue = preset.getAttribute('data-grid');
-            gridInput.value = gridValue;
-            updateGridFromInput(gridValue);
+            const [width, height] = gridValue.split('x');
+            
+            // Update all controls
+            updateAllGridControls(parseInt(width), parseInt(height));
         });
     });
 
-    // Grid input
-    gridInput.addEventListener('input', () => {
-        updateGridFromInput(gridInput.value);
-        gridPresets.forEach(p => p.classList.remove('selected'));
+    // Dropdown changes
+    gridWidth.addEventListener('change', () => {
+        const width = parseInt(gridWidth.value);
+        const height = parseInt(gridHeight.value);
+        updateAllGridControls(width, height);
+        clearPresetSelection();
     });
+
+    gridHeight.addEventListener('change', () => {
+        const width = parseInt(gridWidth.value);
+        const height = parseInt(gridHeight.value);
+        updateAllGridControls(width, height);
+        clearPresetSelection();
+    });
+
+    // Slider changes
+    gridWidthSlider.addEventListener('input', () => {
+        const width = parseInt(gridWidthSlider.value);
+        const height = parseInt(gridHeight.value);
+        updateAllGridControls(width, height);
+        clearPresetSelection();
+    });
+
+    gridHeightSlider.addEventListener('input', () => {
+        const width = parseInt(gridWidth.value);
+        const height = parseInt(gridHeightSlider.value);
+        updateAllGridControls(width, height);
+        clearPresetSelection();
+    });
+
+    function updateAllGridControls(width, height) {
+        // Update dropdowns
+        gridWidth.value = width;
+        gridHeight.value = height;
+        
+        // Update sliders
+        gridWidthSlider.value = width;
+        gridHeightSlider.value = height;
+        
+        // Update value displays
+        gridWidthValue.textContent = width;
+        gridHeightValue.textContent = height;
+        
+        // Update hidden input for backend compatibility
+        gridInput.value = `${width}x${height}`;
+        
+        // Update project config
+        updateGridFromInput(`${width}x${height}`);
+    }
+
+    function clearPresetSelection() {
+        gridPresets.forEach(p => p.classList.remove('selected'));
+    }
 }
 
 function updateGridFromInput(gridValue) {

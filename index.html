@@ -32,14 +32,66 @@
             </div>
             
             <div class="form-group">
-                <label for="gridInput">Kartenanzahl pro A4-Bogen (Format: Breite x Höhe):</label>
+                <label>Kartenanzahl pro A4-Bogen:</label>
+                
+                <!-- Preset Buttons -->
                 <div class="grid-options">
                     <button class="grid-preset" data-grid="3x3">3 x 3</button>
                     <button class="grid-preset" data-grid="4x4">4 x 4</button>
                     <button class="grid-preset" data-grid="2x3">2 x 3</button>
                     <button class="grid-preset" data-grid="5x4">5 x 4</button>
                 </div>
-                <input type="text" id="gridInput" placeholder="z.B. 3x3 oder 4x2" pattern="[0-9]+x[0-9]+" value="3x3">
+
+                <!-- Custom Grid Controls -->
+                <div class="grid-custom-controls">
+                    <div class="grid-dropdowns">
+                        <div class="dropdown-group">
+                            <label for="gridWidth">Breite:</label>
+                            <select id="gridWidth">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3" selected>3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+                        <div class="dropdown-group">
+                            <label for="gridHeight">Höhe:</label>
+                            <select id="gridHeight">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3" selected>3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Quick Adjustment Sliders -->
+                    <div class="grid-sliders">
+                        <div class="slider-group">
+                            <label for="gridWidthSlider">Breite: <span id="gridWidthValue">3</span></label>
+                            <input type="range" id="gridWidthSlider" min="1" max="10" value="3">
+                        </div>
+                        <div class="slider-group">
+                            <label for="gridHeightSlider">Höhe: <span id="gridHeightValue">3</span></label>
+                            <input type="range" id="gridHeightSlider" min="1" max="10" value="3">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hidden input for backend compatibility -->
+                <input type="hidden" id="gridInput" value="3x3">
             </div>
 
             <div class="grid-preview">

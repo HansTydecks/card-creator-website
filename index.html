@@ -12,7 +12,7 @@
     <div class="container">
         <header>
             <h1>Card Creator</h1>
-            <p>Erstellen Sie schnell und einfach PDF-Karten für den Unterricht</p>
+            <p>Erstellen Sie schnell und einfach Karteikarten</p>
         </header>
 
         <!-- Tab Navigation -->
@@ -20,15 +20,15 @@
             <button class="tab-button active" data-tab="project">1. Projekt Setup</button>
             <button class="tab-button" data-tab="design">2. Master Design</button>
             <button class="tab-button" data-tab="content">3. Karteninhalte</button>
-            <button class="tab-button" data-tab="export">4. PDF Export</button>
+            <button class="tab-button" data-tab="export">4. PDF-Export</button>
         </nav>
 
         <!-- Tab 1: Projekt Setup -->
         <div id="project" class="tab-content active">
             <h2>Projekt Setup</h2>
             <div class="form-group">
-                <label for="projectName">Projektbeschreibung (wird als Dateiname verwendet):</label>
-                <input type="text" id="projectName" placeholder="z.B. Mathe Vokabeln Klasse 5" value="Meine Karten">
+                <label for="projectName">Projektname:</label>
+                <input type="text" id="projectName" placeholder="z.B. Englisch Vokabeln Klasse 5" value="Meine Karten">
             </div>
             
             <div class="form-group">
@@ -50,9 +50,9 @@
                             <select id="gridWidth">
                                 <option value="1">1</option>
                                 <option value="2">2</option>
-                                <option value="3" selected>3</option>
+                                <option value="3">3</option>
                                 <option value="4">4</option>
-                                <option value="5">5</option>
+                                <option value="5"selected>5</option>
                                 <option value="6">6</option>
                                 <option value="7">7</option>
                                 <option value="8">8</option>
@@ -65,9 +65,9 @@
                             <select id="gridHeight">
                                 <option value="1">1</option>
                                 <option value="2">2</option>
-                                <option value="3" selected>3</option>
+                                <option value="3">3</option>
                                 <option value="4">4</option>
-                                <option value="5">5</option>
+                                <option value="5" selected>5</option>
                                 <option value="6">6</option>
                                 <option value="7">7</option>
                                 <option value="8">8</option>
@@ -105,6 +105,13 @@
         <!-- Tab 2: Master Design -->
         <div id="design" class="tab-content">
             <h2>Master Karten Design</h2>
+            
+            <!-- Front/Back Side Selector -->
+            <div class="side-selector">
+                <button id="frontSideBtn" class="side-button active" data-side="front">Vorderseite</button>
+                <button id="backSideBtn" class="side-button" data-side="back">Rückseite</button>
+            </div>
+            
             <div class="design-container">
                 <div class="design-controls">
                     <div class="form-group">

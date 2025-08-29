@@ -7,14 +7,27 @@ let projectConfig = {
 };
 
 let masterCard = {
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#000000',
-    watermark: '',
-    backgroundImage: null,
-    textboxes: [],
-    imageboxes: []
+    front: {
+        backgroundColor: '#ffffff',
+        borderWidth: 2,
+        borderColor: '#000000',
+        watermark: '',
+        backgroundImage: null,
+        textboxes: [],
+        imageboxes: []
+    },
+    back: {
+        backgroundColor: '#ffffff',
+        borderWidth: 2,
+        borderColor: '#000000',
+        watermark: '',
+        backgroundImage: null,
+        textboxes: [],
+        imageboxes: []
+    }
 };
+
+let currentSide = 'front';
 
 let cardContents = [];
 let textboxCounter = 0;
@@ -83,8 +96,13 @@ function switchTab(tabName) {
 
     // Execute tab-specific initialization functions
     if (tabName === 'content') {
-        // Ensure content inputs are generated when switching to content tab
-        if (masterCard.textboxes.length > 0 || masterCard.imageboxes.length > 0) {
+        // Only generate content inputs if they don't exist or if master card has changed
+        const container = document.getElementById('contentInputs');
+        const needsRegeneration = container.innerHTML === '' || 
+                                cardContents.length !== projectConfig.cardCount;
+        
+        if (needsRegeneration && (masterCard.front.textboxes.length > 0 || masterCard.front.imageboxes.length > 0 || 
+            masterCard.back.textboxes.length > 0 || masterCard.back.imageboxes.length > 0)) {
             generateContentInputs();
         }
     } else if (tabName === 'export') {
@@ -224,29 +242,37 @@ function initializeDesign() {
     const backgroundImage = document.getElementById('backgroundImage');
     const addTextboxBtn = document.getElementById('addTextbox');
     const addImageboxBtn = document.getElementById('addImagebox');
+    
+    // Side selector buttons
+    const frontSideBtn = document.getElementById('frontSideBtn');
+    const backSideBtn = document.getElementById('backSideBtn');
+
+    // Side switching
+    frontSideBtn.addEventListener('click', () => switchSide('front'));
+    backSideBtn.addEventListener('click', () => switchSide('back'));
 
     // Background color
     backgroundColor.addEventListener('change', () => {
-        masterCard.backgroundColor = backgroundColor.value;
+        masterCard[currentSide].backgroundColor = backgroundColor.value;
         updateCardPreview();
     });
 
     // Border width
     borderWidth.addEventListener('input', () => {
-        masterCard.borderWidth = borderWidth.value;
+        masterCard[currentSide].borderWidth = borderWidth.value;
         borderWidthValue.textContent = borderWidth.value + 'px';
         updateCardPreview();
     });
 
     // Border color
     borderColor.addEventListener('change', () => {
-        masterCard.borderColor = borderColor.value;
+        masterCard[currentSide].borderColor = borderColor.value;
         updateCardPreview();
     });
 
     // Watermark
     watermarkText.addEventListener('input', () => {
-        masterCard.watermark = watermarkText.value;
+        masterCard[currentSide].watermark = watermarkText.value;
         updateCardPreview();
     });
 
@@ -256,7 +282,7 @@ function initializeDesign() {
         if (file) {
             const reader = new FileReader();
             reader.onload = (e) => {
-                masterCard.backgroundImage = e.target.result;
+                masterCard[currentSide].backgroundImage = e.target.result;
                 updateCardPreview();
             };
             reader.readAsDataURL(file);
@@ -273,6 +299,33 @@ function initializeDesign() {
     updateCardPreview();
 }
 
+function switchSide(side) {
+    currentSide = side;
+    
+    // Update button states
+    document.getElementById('frontSideBtn').classList.remove('active');
+    document.getElementById('backSideBtn').classList.remove('active');
+    document.getElementById(side + 'SideBtn').classList.add('active');
+    
+    // Update form controls to show current side's values
+    updateFormControls();
+    updateElementLists();
+    updateCardPreview();
+}
+
+function updateFormControls() {
+    const currentCardSide = masterCard[currentSide];
+    
+    document.getElementById('backgroundColor').value = currentCardSide.backgroundColor;
+    document.getElementById('borderWidth').value = currentCardSide.borderWidth;
+    document.getElementById('borderWidthValue').textContent = currentCardSide.borderWidth + 'px';
+    document.getElementById('borderColor').value = currentCardSide.borderColor;
+    document.getElementById('watermarkText').value = currentCardSide.watermark;
+    
+    // Reset background image input (file inputs can't be set programmatically)
+    document.getElementById('backgroundImage').value = '';
+}
+
 function addTextbox() {
     const textbox = {
         id: ++textboxCounter,
@@ -285,7 +338,7 @@ function addTextbox() {
         fontColor: '#000000'
     };
 
-    masterCard.textboxes.push(textbox);
+    masterCard[currentSide].textboxes.push(textbox);
     updateElementLists();
     updateCardPreview();
 }
@@ -301,7 +354,7 @@ function addImagebox() {
         image: null
     };
 
-    masterCard.imageboxes.push(imagebox);
+    masterCard[currentSide].imageboxes.push(imagebox);
     updateElementLists();
     updateCardPreview();
 }
@@ -315,7 +368,7 @@ function updateTextboxList() {
     const list = document.getElementById('textboxList');
     list.innerHTML = '';
 
-    masterCard.textboxes.forEach((textbox, index) => {
+    masterCard[currentSide].textboxes.forEach((textbox, index) => {
         const item = document.createElement('div');
         item.className = 'textbox-item';
         item.innerHTML = `
@@ -332,22 +385,22 @@ function updateTextboxList() {
 }
 
 function updateTextboxText(index, text) {
-    masterCard.textboxes[index].text = text;
+    masterCard[currentSide].textboxes[index].text = text;
     updateCardPreview();
 }
 
 function updateTextboxFontSize(index, fontSize) {
-    masterCard.textboxes[index].fontSize = parseInt(fontSize) || 12;
+    masterCard[currentSide].textboxes[index].fontSize = parseInt(fontSize) || 12;
     updateCardPreview();
 }
 
 function updateTextboxColor(index, color) {
-    masterCard.textboxes[index].fontColor = color;
+    masterCard[currentSide].textboxes[index].fontColor = color;
     updateCardPreview();
 }
 
 function removeTextbox(index) {
-    masterCard.textboxes.splice(index, 1);
+    masterCard[currentSide].textboxes.splice(index, 1);
     updateElementLists();
     updateCardPreview();
 }
@@ -356,7 +409,7 @@ function updateImageboxList() {
     const list = document.getElementById('imageboxList');
     list.innerHTML = '';
 
-    masterCard.imageboxes.forEach((imagebox, index) => {
+    masterCard[currentSide].imageboxes.forEach((imagebox, index) => {
         const item = document.createElement('div');
         item.className = 'imagebox-item';
         item.innerHTML = `
@@ -373,7 +426,7 @@ function updateImageboxList() {
 }
 
 function updateImageboxName(index, name) {
-    masterCard.imageboxes[index].name = name;
+    masterCard[currentSide].imageboxes[index].name = name;
     updateCardPreview();
 }
 
@@ -382,7 +435,7 @@ function updateImageboxImage(index, input) {
     if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            masterCard.imageboxes[index].image = e.target.result;
+            masterCard[currentSide].imageboxes[index].image = e.target.result;
             updateElementLists();
             updateCardPreview();
         };
@@ -391,23 +444,24 @@ function updateImageboxImage(index, input) {
 }
 
 function removeImagebox(index) {
-    masterCard.imageboxes.splice(index, 1);
+    masterCard[currentSide].imageboxes.splice(index, 1);
     updateElementLists();
     updateCardPreview();
 }
 
 function updateCardPreview() {
     const card = document.getElementById('masterCard');
+    const currentCardSide = masterCard[currentSide];
     
     // Apply basic styles
-    card.style.backgroundColor = masterCard.backgroundColor;
-    card.style.borderWidth = masterCard.borderWidth + 'px';
-    card.style.borderColor = masterCard.borderColor;
+    card.style.backgroundColor = currentCardSide.backgroundColor;
+    card.style.borderWidth = currentCardSide.borderWidth + 'px';
+    card.style.borderColor = currentCardSide.borderColor;
     card.style.borderStyle = 'solid';
 
     // Background image
-    if (masterCard.backgroundImage) {
-        card.style.backgroundImage = `url(${masterCard.backgroundImage})`;
+    if (currentCardSide.backgroundImage) {
+        card.style.backgroundImage = `url(${currentCardSide.backgroundImage})`;
         card.style.backgroundSize = 'cover';
         card.style.backgroundPosition = 'center';
     } else {
@@ -418,7 +472,7 @@ function updateCardPreview() {
     card.innerHTML = '';
 
     // Add textboxes
-    masterCard.textboxes.forEach((textbox, index) => {
+    currentCardSide.textboxes.forEach((textbox, index) => {
         const textboxElement = document.createElement('div');
         textboxElement.className = 'card-textbox';
         textboxElement.textContent = textbox.text;
@@ -436,7 +490,7 @@ function updateCardPreview() {
     });
 
     // Add imageboxes
-    masterCard.imageboxes.forEach((imagebox, index) => {
+    currentCardSide.imageboxes.forEach((imagebox, index) => {
         const imageboxElement = document.createElement('div');
         imageboxElement.className = 'card-imagebox';
         imageboxElement.style.left = imagebox.x + 'px';
@@ -460,10 +514,10 @@ function updateCardPreview() {
     });
 
     // Add watermark
-    if (masterCard.watermark) {
+    if (currentCardSide.watermark) {
         const watermark = document.createElement('div');
         watermark.className = 'card-watermark';
-        watermark.textContent = masterCard.watermark;
+        watermark.textContent = currentCardSide.watermark;
         card.appendChild(watermark);
     }
 }
@@ -480,11 +534,11 @@ function makeDraggable(element, type, index) {
         startY = e.clientY;
         
         if (type === 'textbox') {
-            initialX = masterCard.textboxes[index].x;
-            initialY = masterCard.textboxes[index].y;
+            initialX = masterCard[currentSide].textboxes[index].x;
+            initialY = masterCard[currentSide].textboxes[index].y;
         } else if (type === 'imagebox') {
-            initialX = masterCard.imageboxes[index].x;
-            initialY = masterCard.imageboxes[index].y;
+            initialX = masterCard[currentSide].imageboxes[index].x;
+            initialY = masterCard[currentSide].imageboxes[index].y;
         }
         
         e.preventDefault();
@@ -498,22 +552,22 @@ function makeDraggable(element, type, index) {
         
         let elementWidth, elementHeight;
         if (type === 'textbox') {
-            elementWidth = masterCard.textboxes[index].width;
-            elementHeight = masterCard.textboxes[index].height;
+            elementWidth = masterCard[currentSide].textboxes[index].width;
+            elementHeight = masterCard[currentSide].textboxes[index].height;
         } else if (type === 'imagebox') {
-            elementWidth = masterCard.imageboxes[index].width;
-            elementHeight = masterCard.imageboxes[index].height;
+            elementWidth = masterCard[currentSide].imageboxes[index].width;
+            elementHeight = masterCard[currentSide].imageboxes[index].height;
         }
         
         const newX = Math.max(0, Math.min(200 - elementWidth, initialX + deltaX));
         const newY = Math.max(0, Math.min(280 - elementHeight, initialY + deltaY));
         
         if (type === 'textbox') {
-            masterCard.textboxes[index].x = newX;
-            masterCard.textboxes[index].y = newY;
+            masterCard[currentSide].textboxes[index].x = newX;
+            masterCard[currentSide].textboxes[index].y = newY;
         } else if (type === 'imagebox') {
-            masterCard.imageboxes[index].x = newX;
-            masterCard.imageboxes[index].y = newY;
+            masterCard[currentSide].imageboxes[index].x = newX;
+            masterCard[currentSide].imageboxes[index].y = newY;
         }
         
         element.style.left = newX + 'px';
@@ -534,74 +588,173 @@ function saveMasterCard() {
 // Content Input (Tab 3)
 function generateContentInputs() {
     const container = document.getElementById('contentInputs');
+    
+    // Save existing values before regenerating
+    const existingValues = {};
+    if (container.innerHTML !== '') {
+        // Extract values from existing form elements
+        const inputs = container.querySelectorAll('textarea, input[type="file"]');
+        inputs.forEach(input => {
+            if (input.type === 'file') {
+                // For file inputs, we keep the data in cardContents already
+                return;
+            } else {
+                existingValues[input.id] = input.value;
+            }
+        });
+    }
+    
     container.innerHTML = '';
 
-    // Initialize card contents array
-    cardContents = [];
+    // Initialize card contents array if empty
+    if (cardContents.length === 0) {
+        for (let i = 0; i < projectConfig.cardCount; i++) {
+            const cardContent = {
+                cardIndex: i,
+                front: {
+                    textboxes: masterCard.front.textboxes.map(() => ''),
+                    imageboxes: masterCard.front.imageboxes.map(() => null)
+                },
+                back: {
+                    textboxes: masterCard.back.textboxes.map(() => ''),
+                    imageboxes: masterCard.back.imageboxes.map(() => null)
+                }
+            };
+            cardContents.push(cardContent);
+        }
+    }
     
     for (let i = 0; i < projectConfig.cardCount; i++) {
         const cardInput = document.createElement('div');
         cardInput.className = 'card-input';
         
-        let textboxInputs = '';
-        masterCard.textboxes.forEach((textbox, textboxIndex) => {
-            textboxInputs += `
-                <div class="textbox-input">
-                    <label>📝 Textbox ${textbox.id}:</label>
-                    <textarea 
-                        id="card_${i}_textbox_${textboxIndex}" 
-                        placeholder="Inhalt für ${textbox.text}"
-                        onchange="updateCardContent(${i}, 'textbox', ${textboxIndex}, this.value)"
-                    ></textarea>
-                </div>
-            `;
-        });
+        // Card header
+        let cardHTML = `<h4>Karte ${i + 1}</h4>`;
+        
+        // Front side section
+        const hasFrontElements = masterCard.front.textboxes.length > 0 || masterCard.front.imageboxes.length > 0;
+        if (hasFrontElements) {
+            cardHTML += `<div class="card-side-section">
+                <h5 class="side-title">📄 Vorderseite</h5>`;
+            
+            // Front textboxes
+            masterCard.front.textboxes.forEach((textbox, textboxIndex) => {
+                const inputId = `card_${i}_front_textbox_${textboxIndex}`;
+                const savedValue = existingValues[inputId] || cardContents[i]?.front?.textboxes[textboxIndex] || '';
+                
+                cardHTML += `
+                    <div class="input-field">
+                        <label for="${inputId}">📝 ${textbox.text}:</label>
+                        <textarea 
+                            id="${inputId}" 
+                            placeholder="Inhalt für ${textbox.text}"
+                            onchange="updateCardContent(${i}, 'front', 'textbox', ${textboxIndex}, this.value)"
+                            tabindex="${(i * 10) + (textboxIndex * 2) + 1}"
+                        >${savedValue}</textarea>
+                    </div>
+                `;
+                
+                // Update cardContents with saved value
+                if (cardContents[i]) {
+                    cardContents[i].front.textboxes[textboxIndex] = savedValue;
+                }
+            });
 
-        let imageboxInputs = '';
-        masterCard.imageboxes.forEach((imagebox, imageboxIndex) => {
-            imageboxInputs += `
-                <div class="textbox-input">
-                    <label>🖼️ Bild ${imagebox.id}:</label>
-                    <input 
-                        type="file" 
-                        accept="image/*"
-                        id="card_${i}_imagebox_${imageboxIndex}"
-                        onchange="updateCardImageContent(${i}, ${imageboxIndex}, this)"
-                    >
-                </div>
-            `;
-        });
+            // Front imageboxes
+            masterCard.front.imageboxes.forEach((imagebox, imageboxIndex) => {
+                const tabIndex = (i * 10) + (masterCard.front.textboxes.length * 2) + (imageboxIndex * 2) + 1;
+                const inputId = `card_${i}_front_imagebox_${imageboxIndex}`;
+                
+                cardHTML += `
+                    <div class="input-field">
+                        <label for="${inputId}">🖼️ ${imagebox.name}:</label>
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            id="${inputId}"
+                            onchange="updateCardImageContent(${i}, 'front', ${imageboxIndex}, this)"
+                            tabindex="${tabIndex}"
+                        >
+                        ${cardContents[i]?.front?.imageboxes[imageboxIndex] ? '<div style="margin-top: 5px; font-size: 12px; color: #0d7377;">✓ Bild hochgeladen</div>' : ''}
+                    </div>
+                `;
+            });
+            
+            cardHTML += `</div>`; // Close front side section
+        }
 
-        cardInput.innerHTML = `
-            <h4>Karte ${i + 1}</h4>
-            ${textboxInputs}
-            ${imageboxInputs}
-        `;
+        // Back side section
+        const hasBackElements = masterCard.back.textboxes.length > 0 || masterCard.back.imageboxes.length > 0;
+        if (hasBackElements) {
+            cardHTML += `<div class="card-side-section">
+                <h5 class="side-title">🔄 Rückseite</h5>`;
+            
+            // Back textboxes
+            masterCard.back.textboxes.forEach((textbox, textboxIndex) => {
+                const frontElementsCount = masterCard.front.textboxes.length + masterCard.front.imageboxes.length;
+                const tabIndex = (i * 10) + (frontElementsCount * 2) + (textboxIndex * 2) + 1;
+                const inputId = `card_${i}_back_textbox_${textboxIndex}`;
+                const savedValue = existingValues[inputId] || cardContents[i]?.back?.textboxes[textboxIndex] || '';
+                
+                cardHTML += `
+                    <div class="input-field">
+                        <label for="${inputId}">📝 ${textbox.text}:</label>
+                        <textarea 
+                            id="${inputId}" 
+                            placeholder="Inhalt für ${textbox.text}"
+                            onchange="updateCardContent(${i}, 'back', 'textbox', ${textboxIndex}, this.value)"
+                            tabindex="${tabIndex}"
+                        >${savedValue}</textarea>
+                    </div>
+                `;
+                
+                // Update cardContents with saved value
+                if (cardContents[i]) {
+                    cardContents[i].back.textboxes[textboxIndex] = savedValue;
+                }
+            });
 
+            // Back imageboxes
+            masterCard.back.imageboxes.forEach((imagebox, imageboxIndex) => {
+                const frontElementsCount = masterCard.front.textboxes.length + masterCard.front.imageboxes.length;
+                const tabIndex = (i * 10) + (frontElementsCount * 2) + (masterCard.back.textboxes.length * 2) + (imageboxIndex * 2) + 1;
+                const inputId = `card_${i}_back_imagebox_${imageboxIndex}`;
+                
+                cardHTML += `
+                    <div class="input-field">
+                        <label for="${inputId}">🖼️ ${imagebox.name}:</label>
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            id="${inputId}"
+                            onchange="updateCardImageContent(${i}, 'back', ${imageboxIndex}, this)"
+                            tabindex="${tabIndex}"
+                        >
+                        ${cardContents[i]?.back?.imageboxes[imageboxIndex] ? '<div style="margin-top: 5px; font-size: 12px; color: #0d7377;">✓ Bild hochgeladen</div>' : ''}
+                    </div>
+                `;
+            });
+            
+            cardHTML += `</div>`; // Close back side section
+        }
+
+        cardInput.innerHTML = cardHTML;
         container.appendChild(cardInput);
-
-        // Initialize card content
-        const cardContent = {
-            cardIndex: i,
-            textboxes: masterCard.textboxes.map(() => ''),
-            imageboxes: masterCard.imageboxes.map(() => null)
-        };
-        cardContents.push(cardContent);
     }
 }
 
-function updateCardContent(cardIndex, type, elementIndex, value) {
+function updateCardContent(cardIndex, side, type, elementIndex, value) {
     if (type === 'textbox') {
-        cardContents[cardIndex].textboxes[elementIndex] = value;
+        cardContents[cardIndex][side].textboxes[elementIndex] = value;
     }
 }
 
-function updateCardImageContent(cardIndex, imageboxIndex, input) {
+function updateCardImageContent(cardIndex, side, imageboxIndex, input) {
     const file = input.files[0];
     if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            cardContents[cardIndex].imageboxes[imageboxIndex] = e.target.result;
+            cardContents[cardIndex][side].imageboxes[imageboxIndex] = e.target.result;
         };
         reader.readAsDataURL(file);
     }
@@ -616,40 +769,74 @@ function generatePDFPreview() {
     const preview = document.getElementById('pdfPreview');
     preview.innerHTML = '<h3>PDF Vorschau:</h3>';
 
-    const pdfPage = document.createElement('div');
-    pdfPage.className = 'pdf-page';
-    pdfPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
-    pdfPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
+    // Create front sides page
+    const frontPage = document.createElement('div');
+    frontPage.className = 'pdf-page';
+    frontPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
+    frontPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
+
+    const frontTitle = document.createElement('h4');
+    frontTitle.textContent = 'Vorderseiten';
+    frontTitle.style.gridColumn = '1 / -1';
+    frontTitle.style.textAlign = 'center';
+    frontTitle.style.margin = '0 0 10px 0';
+    frontPage.appendChild(frontTitle);
 
     cardContents.forEach((cardContent, index) => {
-        const pdfCard = createPDFCard(cardContent, index);
-        pdfPage.appendChild(pdfCard);
+        const frontCard = createPDFCard(cardContent, index, 'front');
+        frontPage.appendChild(frontCard);
     });
 
-    preview.appendChild(pdfPage);
+    preview.appendChild(frontPage);
+
+    // Create back sides page
+    const backPage = document.createElement('div');
+    backPage.className = 'pdf-page';
+    backPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
+    backPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
+
+    const backTitle = document.createElement('h4');
+    backTitle.textContent = 'Rückseiten (gespiegelt für deckungsgleichen Druck)';
+    backTitle.style.gridColumn = '1 / -1';
+    backTitle.style.textAlign = 'center';
+    backTitle.style.margin = '0 0 10px 0';
+    backPage.appendChild(backTitle);
+
+    // Reverse order for back sides to match front when printed double-sided
+    cardContents.slice().reverse().forEach((cardContent, index) => {
+        const originalIndex = cardContents.length - 1 - index;
+        const backCard = createPDFCard(cardContent, originalIndex, 'back');
+        backCard.style.transform = 'scaleX(-1)'; // Mirror for proper alignment
+        backPage.appendChild(backCard);
+    });
+
+    preview.appendChild(backPage);
 }
 
-function createPDFCard(cardContent, cardIndex) {
+function createPDFCard(cardContent, cardIndex, side) {
     const card = document.createElement('div');
     card.className = 'pdf-card';
     
+    const cardSideData = masterCard[side];
+    const contentSideData = cardContent[side];
+    
     // Apply master card styles
-    card.style.backgroundColor = masterCard.backgroundColor;
-    card.style.borderWidth = (masterCard.borderWidth * 0.5) + 'px'; // Scale down for preview
-    card.style.borderColor = masterCard.borderColor;
+    card.style.backgroundColor = cardSideData.backgroundColor;
+    card.style.borderWidth = (cardSideData.borderWidth * 0.5) + 'px'; // Scale down for preview
+    card.style.borderColor = cardSideData.borderColor;
     card.style.borderStyle = 'solid';
 
-    if (masterCard.backgroundImage) {
-        card.style.backgroundImage = `url(${masterCard.backgroundImage})`;
+    if (cardSideData.backgroundImage) {
+        card.style.backgroundImage = `url(${cardSideData.backgroundImage})`;
         card.style.backgroundSize = 'cover';
         card.style.backgroundPosition = 'center';
     }
 
     // Add textboxes with content
-    masterCard.textboxes.forEach((textbox, textboxIndex) => {
+    cardSideData.textboxes.forEach((textbox, textboxIndex) => {
         const textboxElement = document.createElement('div');
         textboxElement.className = 'pdf-card-textbox';
-        textboxElement.textContent = cardContent.textboxes[textboxIndex] || textbox.text;
+        textboxElement.textContent = contentSideData.textboxes[textboxIndex] || textbox.text;
         
         // Scale positions and sizes for PDF
         textboxElement.style.left = (textbox.x * 0.5) + 'px';
@@ -663,7 +850,7 @@ function createPDFCard(cardContent, cardIndex) {
     });
 
     // Add imageboxes with content
-    masterCard.imageboxes.forEach((imagebox, imageboxIndex) => {
+    cardSideData.imageboxes.forEach((imagebox, imageboxIndex) => {
         const imageboxElement = document.createElement('div');
         imageboxElement.className = 'pdf-card-textbox';
         imageboxElement.style.left = (imagebox.x * 0.5) + 'px';
@@ -672,7 +859,7 @@ function createPDFCard(cardContent, cardIndex) {
         imageboxElement.style.height = (imagebox.height * 0.5) + 'px';
         imageboxElement.style.overflow = 'hidden';
         
-        const imageData = cardContent.imageboxes[imageboxIndex] || imagebox.image;
+        const imageData = contentSideData.imageboxes[imageboxIndex] || imagebox.image;
         if (imageData) {
             const img = document.createElement('img');
             img.src = imageData;
@@ -694,10 +881,10 @@ function createPDFCard(cardContent, cardIndex) {
     });
 
     // Add watermark
-    if (masterCard.watermark) {
+    if (cardSideData.watermark) {
         const watermark = document.createElement('div');
         watermark.className = 'card-watermark';
-        watermark.textContent = masterCard.watermark;
+        watermark.textContent = cardSideData.watermark;
         watermark.style.fontSize = '4px';
         card.appendChild(watermark);
     }
@@ -776,18 +963,30 @@ function resetApp() {
     };
     
     masterCard = {
-        backgroundColor: '#ffffff',
-        borderWidth: 2,
-        borderColor: '#000000',
-        watermark: '',
-        backgroundImage: null,
-        textboxes: [],
-        imageboxes: []
+        front: {
+            backgroundColor: '#ffffff',
+            borderWidth: 2,
+            borderColor: '#000000',
+            watermark: '',
+            backgroundImage: null,
+            textboxes: [],
+            imageboxes: []
+        },
+        back: {
+            backgroundColor: '#ffffff',
+            borderWidth: 2,
+            borderColor: '#000000',
+            watermark: '',
+            backgroundImage: null,
+            textboxes: [],
+            imageboxes: []
+        }
     };
     
     cardContents = [];
     textboxCounter = 0;
     imageboxCounter = 0;
+    currentSide = 'front';
     
     switchTab('project');
     updateGridPreview();

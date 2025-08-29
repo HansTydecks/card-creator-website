@@ -1,6 +1,9 @@
 // Card Creator - Main Application
+console.log('App.js script loaded');
+
 class CardCreator {
     constructor() {
+        console.log('CardCreator constructor called');
         this.currentStep = 'project-setup';
         this.project = {
             paperSize: 'a4',
@@ -57,40 +60,376 @@ class CardCreator {
     }
 
     init() {
-        this.setupEventListeners();
-        this.initCanvas();
-        this.showStep('project-setup');
+        console.log('Init method called, readyState:', document.readyState);
+        
+        // Initialize tab navigation
+        this.initTabNavigation();
+        
+        // Ensure DOM is ready
+        if (document.readyState === 'loading') {
+            console.log('DOM still loading, waiting for DOMContentLoaded');
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOMContentLoaded in init method');
+                this.setupEventListeners();
+                this.initCanvas();
+                this.switchTab('project-setup', 0);
+            });
+        } else {
+            console.log('DOM ready, setting up immediately');
+            this.setupEventListeners();
+            this.initCanvas();
+            this.switchTab('project-setup', 0);
+        }
+    }
+
+    initTabNavigation() {
+        console.log('Initializing tab navigation');
+        
+        // Wait for DOM to be ready
+        const setupTabs = () => {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            const tabIndicator = document.querySelector('.tab-indicator');
+            
+            console.log('Found tab buttons:', tabBtns.length);
+            console.log('Found tab contents:', tabContents.length);
+            
+            // Add click handlers to tab buttons
+            tabBtns.forEach((btn, index) => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetTab = btn.getAttribute('data-tab');
+                    console.log('Tab clicked:', targetTab);
+                    this.switchTab(targetTab, index);
+                });
+            });
+            
+            // Add keyboard navigation
+            this.setupKeyboardNavigation();
+        };
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupTabs);
+        } else {
+            setupTabs();
+        }
+    }
+
+    setupKeyboardNavigation() {
+        document.addEventListener('keydown', (e) => {
+            // Only handle if no input is focused
+            if (document.activeElement.tagName === 'INPUT' || 
+                document.activeElement.tagName === 'TEXTAREA' || 
+                document.activeElement.tagName === 'SELECT') {
+                return;
+            }
+
+            const stepToTabIndex = {
+                'project-setup': 0,
+                'master-design': 1,
+                'cards-edit': 2,
+                'export-options': 3
+            };
+
+            const currentIndex = stepToTabIndex[this.currentStep] || 0;
+            const tabs = ['project-setup', 'master-design', 'cards-edit', 'export-options'];
+
+            switch(e.key) {
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (currentIndex > 0) {
+                        this.switchTab(tabs[currentIndex - 1], currentIndex - 1);
+                    }
+                    break;
+
+                case 'ArrowRight':
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (currentIndex < tabs.length - 1) {
+                        this.switchTab(tabs[currentIndex + 1], currentIndex + 1);
+                    }
+                    break;
+
+                case '1':
+                    e.preventDefault();
+                    this.switchTab('project-setup', 0);
+                    break;
+
+                case '2':
+                    e.preventDefault();
+                    this.switchTab('master-design', 1);
+                    break;
+
+                case '3':
+                    e.preventDefault();
+                    this.switchTab('cards-edit', 2);
+                    break;
+
+                case '4':
+                    e.preventDefault();
+                    this.switchTab('export-options', 3);
+                    break;
+            }
+        });
+    }
+
+    switchTab(tabId, tabIndex) {
+        console.log('=== SWITCHING TAB ===');
+        console.log('Target tab:', tabId, 'index:', tabIndex);
+        
+        // Remove active class from all tabs and contents
+        const allTabBtns = document.querySelectorAll('.tab-btn');
+        const allTabContents = document.querySelectorAll('.tab-content');
+        
+        console.log('Found tab buttons:', allTabBtns.length);
+        console.log('Found tab contents:', allTabContents.length);
+        
+        allTabBtns.forEach((btn, i) => {
+            btn.classList.remove('active');
+            console.log(`Removed active from tab button ${i}:`, btn.getAttribute('data-tab'));
+        });
+        
+        allTabContents.forEach((content, i) => {
+            content.classList.remove('active');
+            console.log(`Removed active from content ${i}:`, content.id);
+        });
+        
+        // Add active class to current tab and content
+        const activeTabBtn = document.querySelector(`[data-tab="${tabId}"]`);
+        const activeTabContent = document.getElementById(tabId);
+        
+        console.log('Active tab button found:', !!activeTabBtn);
+        console.log('Active tab content found:', !!activeTabContent);
+        
+        if (activeTabBtn) {
+            activeTabBtn.classList.add('active');
+            console.log('Added active to tab button:', tabId);
+        } else {
+            console.error('Tab button not found:', tabId);
+        }
+        
+        if (activeTabContent) {
+            activeTabContent.classList.add('active');
+            console.log('Added active to tab content:', tabId);
+            console.log('Content classes:', activeTabContent.className);
+            console.log('Content computed display:', window.getComputedStyle(activeTabContent).display);
+        } else {
+            console.error('Tab content not found:', tabId);
+        }
+        
+        // Move indicator
+        const indicator = document.querySelector('.tab-indicator');
+        if (indicator) {
+            indicator.className = `tab-indicator tab-${tabIndex + 1}`;
+            console.log('Moved indicator to position:', tabIndex + 1);
+        }
+        
+        // Update current step for backward compatibility
+        this.currentStep = tabId;
+        
+        // Handle tab-specific initialization
+        this.handleTabSwitch(tabId);
+        
+        console.log('=== TAB SWITCH COMPLETE ===');
+    }
+
+    handleTabSwitch(tabId) {
+        console.log('Handling tab switch to:', tabId);
+        
+        switch(tabId) {
+            case 'project-setup':
+                // Initialize project setup if needed
+                this.loadProjectSettings();
+                break;
+                
+            case 'master-design':
+                // Initialize canvas and design tools
+                setTimeout(() => {
+                    this.initCanvas();
+                    this.initializeCanvas();
+                }, 100);
+                break;
+                
+            case 'cards-edit':
+                // Initialize cards editing
+                this.initializeCards();
+                break;
+                
+            case 'export-options':
+                // Initialize export options
+                this.updateExportPreview();
+                break;
+        }
     }
 
     setupEventListeners() {
-        // Project Setup
-        document.getElementById('start-design').addEventListener('click', () => {
-            this.collectProjectSettings();
-            this.showStep('master-design');
-        });
+        console.log('setupEventListeners called');
+        
+        // Add a visual indicator that the script is working
+        document.body.style.border = '3px solid green';
+        console.log('Green border added to body as visual indicator');
+        
+        // BRUTE FORCE BUTTON FIX - Multiple strategies to ensure it works
+        setTimeout(() => {
+            console.log('=== BRUTE FORCE BUTTON FIX ===');
+            
+            // Strategy 1: Force CSS overrides to make button clickable
+            const btn = document.getElementById('continue-to-cards');
+            if (btn) {
+                console.log('Button found, applying aggressive fixes');
+                
+                // Remove any CSS that might block clicking
+                btn.style.setProperty('pointer-events', 'auto', 'important');
+                btn.style.setProperty('position', 'relative', 'important');
+                btn.style.setProperty('z-index', '99999', 'important');
+                btn.style.setProperty('display', 'block', 'important');
+                btn.style.setProperty('visibility', 'visible', 'important');
+                btn.style.setProperty('border', '5px solid red', 'important');
+                btn.style.setProperty('background', 'yellow', 'important');
+                btn.style.setProperty('color', 'black', 'important');
+                btn.style.setProperty('padding', '10px', 'important');
+                btn.style.setProperty('cursor', 'pointer', 'important');
+                
+                // Force parent containers to be visible and clickable
+                let parent = btn.parentElement;
+                while (parent && parent !== document.body) {
+                    parent.style.setProperty('pointer-events', 'auto', 'important');
+                    parent.style.setProperty('position', 'relative', 'important');
+                    parent.style.setProperty('z-index', '9999', 'important');
+                    parent.style.setProperty('display', 'block', 'important');
+                    parent.style.setProperty('visibility', 'visible', 'important');
+                    parent = parent.parentElement;
+                }
+                
+                // Strategy 2: Multiple event binding methods
+                btn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('ONCLICK METHOD TRIGGERED');
+                    alert('Onclick method worked!');
+                    if (window.cardCreator) {
+                        window.cardCreator.initializeCards();
+                        window.cardCreator.showStep('cards-edit');
+                    }
+                    return false;
+                };
+                
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('ADDEVENTLISTENER METHOD TRIGGERED');
+                    alert('AddEventListener method worked!');
+                    if (window.cardCreator) {
+                        window.cardCreator.initializeCards();
+                        window.cardCreator.showStep('cards-edit');
+                    }
+                }, true); // Use capture phase
+                
+                btn.addEventListener('mousedown', function(e) {
+                    console.log('MOUSEDOWN TRIGGERED');
+                    setTimeout(() => {
+                        if (window.cardCreator) {
+                            window.cardCreator.initializeCards();
+                            window.cardCreator.showStep('cards-edit');
+                        }
+                    }, 100);
+                });
+                
+                // Strategy 3: Force the button to be absolutely positioned and visible
+                const masterSection = document.getElementById('master-design');
+                if (masterSection) {
+                    masterSection.style.setProperty('display', 'block', 'important');
+                    masterSection.classList.add('active');
+                }
+                
+                console.log('All button fixes applied');
+                
+                // Strategy 5: Add keyboard shortcut as backup
+                document.addEventListener('keydown', function(e) {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                        console.log('KEYBOARD SHORTCUT TRIGGERED (Ctrl+Enter)');
+                        e.preventDefault();
+                        if (window.cardCreator) {
+                            window.cardCreator.initializeCards();
+                            window.cardCreator.showStep('cards-edit');
+                        }
+                    }
+                });
+                
+                // Strategy 6: Auto-advance after 5 seconds as ultimate fallback
+                setTimeout(() => {
+                    const masterSection = document.getElementById('master-design');
+                    if (masterSection && masterSection.classList.contains('active')) {
+                        console.log('AUTO-ADVANCE: Going to cards page automatically');
+                        alert('Auto-advancing to cards page (button workaround)');
+                        if (window.cardCreator) {
+                            window.cardCreator.initializeCards();
+                            window.cardCreator.showStep('cards-edit');
+                        }
+                    }
+                }, 5000);
+                
+            } else {
+                console.error('BUTTON NOT FOUND');
+                
+                // Strategy 4: Create a floating emergency button as ultimate backup
+                const emergencyBtn = document.createElement('button');
+                emergencyBtn.innerHTML = '🚨 EMERGENCY: Go to Cards 🚨';
+                emergencyBtn.style.cssText = `
+                    position: fixed !important;
+                    top: 20px !important;
+                    right: 20px !important;
+                    z-index: 100000 !important;
+                    background: red !important;
+                    color: white !important;
+                    padding: 15px !important;
+                    border: none !important;
+                    border-radius: 5px !important;
+                    cursor: pointer !important;
+                    font-size: 14px !important;
+                    font-weight: bold !important;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
+                `;
+
+                emergencyBtn.onclick = function() {
+                    console.log('EMERGENCY BUTTON CLICKED');
+                    alert('Emergency button worked!');
+                    if (window.cardCreator) {
+                        window.cardCreator.initializeCards();
+                        window.cardCreator.showStep('cards-edit');
+                    }
+                };
+
+                document.body.appendChild(emergencyBtn);
+                console.log('Emergency button created');
+            }
+        }, 500);
+        // Project Setup - Debug version
+        const startButton = document.getElementById('start-design');
+        console.log('Start-Design Button gefunden:', startButton);
+        
+        if (startButton) {
+            startButton.addEventListener('click', (e) => {
+                console.log('Button geklickt!');
+                this.collectProjectSettings();
+                this.showStep('master-design');
+            });
+        } else {
+            console.error('Start-Design Button nicht gefunden!');
+        }
 
         // Paper size selection
-        document.querySelectorAll('input[name="paper-size"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                this.project.paperSize = e.target.value;
-            });
+        document.getElementById('paper-size').addEventListener('change', (e) => {
+            this.project.paperSize = e.target.value;
+            console.log('Paper size changed to:', e.target.value);
         });
 
         // Layout selection
-        document.querySelectorAll('.layout-option').forEach(option => {
-            option.addEventListener('click', (e) => {
-                document.querySelectorAll('.layout-option').forEach(o => o.classList.remove('selected'));
-                option.classList.add('selected');
-                this.project.layout = option.dataset.layout;
-                
-                // Show/hide custom size controls
-                const customSizeCard = document.getElementById('custom-size-card');
-                if (option.dataset.layout === 'custom') {
-                    customSizeCard.style.display = 'block';
-                } else {
-                    customSizeCard.style.display = 'none';
-                }
-            });
+        document.getElementById('layout').addEventListener('change', (e) => {
+            this.project.layout = e.target.value;
+            this.project.cardCount = this.getCardCountFromLayout(e.target.value);
+            console.log('Layout changed to:', e.target.value, 'Cards:', this.project.cardCount);
         });
 
         // Custom card size controls
@@ -143,19 +482,11 @@ class CardCreator {
             this.updateCanvasPreview();
         });
 
-        // Card count
-        document.getElementById('card-count').addEventListener('change', (e) => {
-            this.project.cardCount = parseInt(e.target.value);
-        });
+        // Card count - automatically determined by layout
+        // Remove card count control since it's now automatic
 
-        // Template selection
-        document.querySelectorAll('.template-option').forEach(option => {
-            option.addEventListener('click', (e) => {
-                document.querySelectorAll('.template-option').forEach(o => o.classList.remove('selected'));
-                option.classList.add('selected');
-                this.project.template = option.dataset.template;
-            });
-        });
+        // Template selection - Remove template system
+        // Templates are no longer used
 
         // Master Design
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -172,6 +503,16 @@ class CardCreator {
         document.getElementById('bg-texture').addEventListener('change', (e) => {
             this.project.masterCard[this.currentSide].texture = e.target.value;
             this.updateCanvasPreview();
+        });
+        
+        // Texture selection
+        document.querySelectorAll('.texture-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                document.querySelectorAll('.texture-option').forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+                this.project.masterCard[this.currentSide].texture = option.dataset.texture;
+                this.updateCanvasPreview();
+            });
         });
 
         document.getElementById('show-cut-marks').addEventListener('change', (e) => {
@@ -205,6 +546,25 @@ class CardCreator {
         document.getElementById('grid-size').addEventListener('input', (e) => {
             this.gridSize = parseInt(e.target.value);
             document.getElementById('grid-size-value').textContent = `${e.target.value}px`;
+        });
+
+        // Watermark controls
+        document.getElementById('watermark-text').addEventListener('input', (e) => {
+            this.setWatermarkText(e.target.value);
+        });
+
+        document.getElementById('watermark-opacity').addEventListener('input', (e) => {
+            this.setWatermarkOpacity(parseFloat(e.target.value));
+            document.querySelector('#watermark-opacity + .value-display').textContent = `${Math.round(e.target.value * 100)}%`;
+        });
+
+        document.getElementById('watermark-size').addEventListener('input', (e) => {
+            this.setWatermarkSize(parseInt(e.target.value));
+            document.querySelector('#watermark-size + .value-display').textContent = `${e.target.value}px`;
+        });
+
+        document.getElementById('watermark-position').addEventListener('change', (e) => {
+            this.setWatermarkPosition(e.target.value);
         });
 
         // Canvas toolbar
@@ -277,14 +637,66 @@ class CardCreator {
             this.showStep('project-setup');
         });
 
-        document.getElementById('continue-to-cards').addEventListener('click', () => {
-            this.initializeCards();
-            this.showStep('cards-edit');
-        });
+        const continueButton = document.getElementById('continue-to-cards');
+        console.log('Looking for continue-to-cards button:', continueButton);
+        
+        if (continueButton) {
+            console.log('Continue button found!');
+            console.log('Button style display:', window.getComputedStyle(continueButton).display);
+            console.log('Button visibility:', window.getComputedStyle(continueButton).visibility);
+            console.log('Button parent element:', continueButton.parentElement);
+            console.log('Button is visible:', continueButton.offsetParent !== null);
+            
+            // Check if button is in the active step
+            const masterDesignSection = document.getElementById('master-design');
+            console.log('Master design section:', masterDesignSection);
+            console.log('Master design section has active class:', masterDesignSection?.classList.contains('active'));
+            
+            // Check which step is currently active
+            const activeStep = document.querySelector('.step.active');
+            console.log('Currently active step:', activeStep?.id);
+            
+            // Add both event listener and onclick as backup
+            continueButton.addEventListener('click', function(e) {
+                console.log('Event listener fired!', e);
+                alert('Event listener worked!');
+                try {
+                    cardCreator.initializeCards();
+                    cardCreator.showStep('cards-edit');
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            });
+            
+            // Also add onclick as backup
+            continueButton.onclick = function(e) {
+                console.log('Onclick fired!', e);
+                alert('Onclick worked!');
+                return false;
+            };
+            
+            // Test if we can trigger the click programmatically
+            setTimeout(() => {
+                console.log('Testing programmatic click in 2 seconds...');
+                continueButton.click();
+            }, 2000);
+            
+            console.log('Continue to cards button event listener attached');
+        } else {
+            console.error('continue-to-cards button not found during setup');
+            alert('Continue button not found!');
+        }
 
-        document.getElementById('back-to-master').addEventListener('click', () => {
-            this.showStep('master-design');
-        });
+        const backToDesignButton = document.getElementById('back-to-design');
+        if (backToDesignButton) {
+            backToDesignButton.addEventListener('click', () => {
+                console.log('Back to design button clicked');
+                this.showStep('master-design');
+            });
+            console.log('Back to design button event listener attached');
+        } else {
+            console.error('back-to-design button not found during setup');
+        }
 
         document.getElementById('generate-preview').addEventListener('click', () => {
             this.generatePreview();
@@ -394,25 +806,27 @@ class CardCreator {
     }
 
     collectProjectSettings() {
-        // Paper size is already collected via radio button event
-        // Layout is already collected via click event
-        // Card count is already collected via change event
-        // Template is already collected via click event
+        // Get values from form elements
+        this.project.paperSize = document.getElementById('paper-size').value;
+        this.project.layout = document.getElementById('layout').value;
         
-        // Set default layout selection if none selected
-        if (!document.querySelector('.layout-option.selected')) {
-            document.querySelector('.layout-option[data-layout="2x2"]').classList.add('selected');
-            this.project.layout = '2x2';
-        }
+        // Automatically determine card count based on layout
+        this.project.cardCount = this.getCardCountFromLayout(this.project.layout);
+        
+        console.log('Project settings collected:', this.project);
 
-        // Set default template if none selected
-        if (!document.querySelector('.template-option.selected')) {
-            document.querySelector('.template-option[data-template="blank"]').classList.add('selected');
-            this.project.template = 'blank';
-        }
-
-        // Apply template
+        // Apply template (simplified - no more template selection)
         this.applyTemplate();
+    }
+
+    getCardCountFromLayout(layout) {
+        const layoutMap = {
+            '2x2': 4,
+            '2x4': 8, 
+            '3x3': 9,
+            'custom': 4 // Default for custom
+        };
+        return layoutMap[layout] || 4;
     }
 
     applyTemplate() {
@@ -511,16 +925,39 @@ class CardCreator {
     }
 
     showStep(stepId) {
-        document.querySelectorAll('.step').forEach(step => {
-            step.classList.remove('active');
-        });
-        document.getElementById(stepId).classList.add('active');
-        this.currentStep = stepId;
-
-        if (stepId === 'master-design') {
-            this.initCanvas();
-            this.updateCanvasPreview();
+        console.log('showStep called with:', stepId);
+        
+        // Map step IDs to tab indexes for backward compatibility
+        const stepToTabIndex = {
+            'project-setup': 0,
+            'master-design': 1,
+            'cards-edit': 2,
+            'export-options': 3
+        };
+        
+        const tabIndex = stepToTabIndex[stepId];
+        if (tabIndex !== undefined) {
+            this.switchTab(stepId, tabIndex);
+        } else {
+            console.error('Unknown step ID:', stepId);
         }
+    }
+
+    // Add global navigation functions for easy access
+    goToProjectSetup() {
+        this.switchTab('project-setup', 0);
+    }
+
+    goToDesign() {
+        this.switchTab('master-design', 1);
+    }
+
+    goToCards() {
+        this.switchTab('cards-edit', 2);
+    }
+
+    goToExport() {
+        this.switchTab('export-options', 3);
     }
 
     switchSide(side) {
@@ -532,6 +969,8 @@ class CardCreator {
         
         // Update UI to reflect current side settings
         this.updateSideControls();
+        
+        // Only update canvas preview without reinitializing canvas
         this.updateCanvasPreview();
     }
 
@@ -587,23 +1026,26 @@ class CardCreator {
         this.saveState(); // Save state before modification
         
         const sideData = this.project.masterCard[this.currentSide];
+        const cardSize = this.getCardSize();
+        
+        // Create larger, more visible text fields
         const newField = {
-            x: 50,
-            y: 50 + (sideData.textFields.length * 30),
-            width: 200,
-            height: 30,
-            fontSize: 16,
+            x: 20,
+            y: 20 + (sideData.textFields.length * 50),
+            width: Math.min(cardSize.width - 40, 200),
+            height: 40,
+            fontSize: 18,
             fontFamily: 'Arial',
             fontWeight: 'normal',
             fontStyle: 'normal',
             textDecoration: 'none',
             textAlign: 'left',
             color: '#000000',
-            backgroundColor: 'transparent',
-            borderWidth: 0,
-            borderColor: '#000000',
-            borderStyle: 'solid',
-            placeholder: 'Textinhalt',
+            backgroundColor: 'rgba(255, 255, 0, 0.2)',
+            borderWidth: 2,
+            borderColor: '#007bff',
+            borderStyle: 'dashed',
+            placeholder: `Textfeld ${sideData.textFields.length + 1}`,
             rotation: 0,
             opacity: 1,
             zIndex: sideData.textFields.length
@@ -612,33 +1054,45 @@ class CardCreator {
         sideData.textFields.push(newField);
         this.updateFieldsLists();
         this.updateCanvasPreview();
+        
+        // Auto-select the new field
+        this.selectedElement = { type: 'text', index: sideData.textFields.length - 1 };
+        this.showElementProperties(this.selectedElement);
     }
 
     addImageField() {
         this.saveState(); // Save state before modification
         
         const sideData = this.project.masterCard[this.currentSide];
+        const cardSize = this.getCardSize();
+        
+        // Create larger, more visible image fields
         const newField = {
-            x: 50,
-            y: 100 + (sideData.imageFields.length * 80),
-            width: 80,
-            height: 60,
+            x: 20,
+            y: 80 + (sideData.imageFields.length * 100),
+            width: Math.min(cardSize.width - 40, 120),
+            height: 80,
             alignment: 'center',
-            placeholder: 'Bild',
+            placeholder: `Bildfeld ${sideData.imageFields.length + 1}`,
             imageData: null,
             maintainAspectRatio: true,
             rotation: 0,
             opacity: 1,
-            borderWidth: 0,
-            borderColor: '#000000',
-            borderStyle: 'solid',
+            borderWidth: 2,
+            borderColor: '#28a745',
+            borderStyle: 'dashed',
             borderRadius: 0,
+            backgroundColor: 'rgba(0, 255, 0, 0.1)',
             zIndex: sideData.imageFields.length
         };
         
         sideData.imageFields.push(newField);
         this.updateFieldsLists();
         this.updateCanvasPreview();
+        
+        // Auto-select the new field
+        this.selectedElement = { type: 'image', index: sideData.imageFields.length - 1 };
+        this.showElementProperties(this.selectedElement);
     }
 
     removeField(type, index) {
@@ -658,14 +1112,44 @@ class CardCreator {
         
         this.ctx = this.canvas.getContext('2d');
         
-        // Set canvas size based on card dimensions
-        const cardSize = this.getCardSize();
-        this.canvas.width = cardSize.width;
-        this.canvas.height = cardSize.height;
+        // Set much larger canvas size for better editing experience
+        const baseCardSize = this.getCardSize();
         
-        // Set canvas style for proper display
-        this.canvas.style.width = Math.min(400, cardSize.width) + 'px';
-        this.canvas.style.height = Math.min(300, cardSize.height) + 'px';
+        // Scale up the canvas for better editing (minimum 600x400, but maintain aspect ratio)
+        const minWidth = 600;
+        const minHeight = 400;
+        const scaleX = minWidth / baseCardSize.width;
+        const scaleY = minHeight / baseCardSize.height;
+        const scale = Math.max(scaleX, scaleY, 2); // Minimum 2x scale
+        
+        // Check if canvas already has the correct dimensions to avoid unnecessary resizing
+        const newCanvasWidth = Math.round(baseCardSize.width * scale);
+        const newCanvasHeight = Math.round(baseCardSize.height * scale);
+        
+        if (this.canvas.width === newCanvasWidth && 
+            this.canvas.height === newCanvasHeight && 
+            this.canvasScale === scale) {
+            // Canvas is already properly sized, just return
+            return;
+        }
+        
+        this.canvasScale = scale;
+        this.canvas.width = newCanvasWidth;
+        this.canvas.height = newCanvasHeight;
+        
+        // Set canvas display size (responsive but large enough for editing)
+        const maxDisplayWidth = Math.min(800, window.innerWidth * 0.8);
+        const maxDisplayHeight = Math.min(600, window.innerHeight * 0.6);
+        
+        const displayScaleX = maxDisplayWidth / this.canvas.width;
+        const displayScaleY = maxDisplayHeight / this.canvas.height;
+        const displayScale = Math.min(displayScaleX, displayScaleY, 1);
+        
+        this.canvas.style.width = Math.round(this.canvas.width * displayScale) + 'px';
+        this.canvas.style.height = Math.round(this.canvas.height * displayScale) + 'px';
+        
+        // Store the display scale for coordinate calculations
+        this.displayScale = displayScale;
         
         // Add canvas event listeners if not already added
         if (!this.canvas.hasAttribute('data-events-added')) {
@@ -675,6 +1159,10 @@ class CardCreator {
         
         // Initial render
         this.updateCanvasPreview();
+        
+        // Update canvas info
+        document.getElementById('canvas-info-text').textContent = 
+            `Canvas: ${this.canvas.width}×${this.canvas.height}px (Skalierung: ${scale.toFixed(1)}x)`;
     }
 
     addCanvasEventListeners() {
@@ -730,22 +1218,32 @@ class CardCreator {
         
         const sideData = this.project.masterCard[this.currentSide];
         
+        // Reset transform matrix to identity before clearing
+        this.ctx.resetTransform();
+        
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
+        // Save context and apply scaling
+        this.ctx.save();
+        this.ctx.scale(this.canvasScale, this.canvasScale);
+        
+        // Get original card size for drawing
+        const originalCardSize = this.getCardSize();
+        
         // Draw background
         this.ctx.fillStyle = sideData.backgroundColor;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillRect(0, 0, originalCardSize.width, originalCardSize.height);
         
         // Draw custom border
-        this.drawCustomBorder();
+        this.drawCustomBorderScaled(originalCardSize);
         
         // Draw texture
-        this.drawTexture(sideData.texture);
+        this.drawTextureScaled(sideData.texture, originalCardSize);
         
         // Draw watermark first (under content)
         if (this.project.watermarkSettings.text) {
-            this.drawWatermark();
+            this.drawWatermarkScaled(originalCardSize);
         }
         
         // Sort elements by zIndex for proper layering
@@ -772,6 +1270,218 @@ class CardCreator {
         if (sideData.showCutMarks) {
             this.drawCutMarks();
         }
+        
+        // Restore context
+        this.ctx.restore();
+    }
+
+    drawCustomBorderScaled(cardSize) {
+        const border = this.project.borderSettings;
+        if (border.width <= 0) return;
+        
+        this.ctx.save();
+        this.ctx.strokeStyle = border.color;
+        this.ctx.lineWidth = border.width;
+        
+        // Set line style
+        switch (border.style) {
+            case 'dashed':
+                this.ctx.setLineDash([10, 5]);
+                break;
+            case 'dotted':
+                this.ctx.setLineDash([2, 3]);
+                break;
+            case 'double':
+                // Draw outer border
+                this.ctx.strokeRect(border.width/2, border.width/2, 
+                    cardSize.width - border.width, cardSize.height - border.width);
+                // Draw inner border
+                this.ctx.strokeRect(border.width * 1.5, border.width * 1.5, 
+                    cardSize.width - border.width * 3, cardSize.height - border.width * 3);
+                this.ctx.restore();
+                return;
+            default:
+                this.ctx.setLineDash([]);
+        }
+        
+        this.ctx.strokeRect(border.width/2, border.width/2, 
+            cardSize.width - border.width, cardSize.height - border.width);
+        this.ctx.restore();
+    }
+
+    drawWatermarkScaled(cardSize) {
+        const watermark = this.project.watermarkSettings;
+        if (!watermark.text) return;
+        
+        this.ctx.save();
+        this.ctx.globalAlpha = watermark.opacity;
+        this.ctx.fillStyle = '#cccccc';
+        this.ctx.font = `${watermark.size}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        let x, y;
+        switch (watermark.position) {
+            case 'center':
+                x = cardSize.width / 2;
+                y = cardSize.height / 2;
+                break;
+            case 'top-left':
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'top';
+                x = 10;
+                y = 10;
+                break;
+            case 'top-right':
+                this.ctx.textAlign = 'right';
+                this.ctx.textBaseline = 'top';
+                x = cardSize.width - 10;
+                y = 10;
+                break;
+            case 'bottom-left':
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'bottom';
+                x = 10;
+                y = cardSize.height - 10;
+                break;
+            case 'bottom-right':
+            default:
+                this.ctx.textAlign = 'right';
+                this.ctx.textBaseline = 'bottom';
+                x = cardSize.width - 10;
+                y = cardSize.height - 10;
+                break;
+        }
+        
+        this.ctx.fillText(watermark.text, x, y);
+        this.ctx.restore();
+    }
+
+    drawTextureScaled(texture, cardSize) {
+        if (texture === 'none') return;
+        
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        this.ctx.lineWidth = 1;
+        
+        switch (texture) {
+            case 'lines':
+                for (let lineY = 0; lineY < cardSize.height; lineY += 20) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, lineY);
+                    this.ctx.lineTo(cardSize.width, lineY);
+                    this.ctx.stroke();
+                }
+                break;
+            case 'dots':
+                for (let dotX = 10; dotX < cardSize.width; dotX += 20) {
+                    for (let dotY = 10; dotY < cardSize.height; dotY += 20) {
+                        this.ctx.beginPath();
+                        this.ctx.arc(dotX, dotY, 1, 0, 2 * Math.PI);
+                        this.ctx.fill();
+                    }
+                }
+                break;
+            case 'grid':
+                for (let gridX = 0; gridX < cardSize.width; gridX += 20) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(gridX, 0);
+                    this.ctx.lineTo(gridX, cardSize.height);
+                    this.ctx.stroke();
+                }
+                for (let gridY = 0; gridY < cardSize.height; gridY += 20) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, gridY);
+                    this.ctx.lineTo(cardSize.width, gridY);
+                    this.ctx.stroke();
+                }
+                break;
+            case 'diagonal':
+                for (let line = -cardSize.height; line < cardSize.width + cardSize.height; line += 25) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(line, 0);
+                    this.ctx.lineTo(line - cardSize.height, cardSize.height);
+                    this.ctx.stroke();
+                }
+                break;
+            case 'hexagon':
+                const hexRadius = 15;
+                const hexHeight = hexRadius * Math.sqrt(3);
+                for (let row = 0; row < cardSize.height / hexHeight + 2; row++) {
+                    for (let col = 0; col < cardSize.width / (hexRadius * 1.5) + 2; col++) {
+                        const x = col * hexRadius * 1.5;
+                        const y = row * hexHeight + (col % 2) * hexHeight / 2;
+                        this.drawHexagon(x, y, hexRadius * 0.8);
+                    }
+                }
+                break;
+            case 'circles':
+                for (let circleX = 25; circleX < cardSize.width; circleX += 50) {
+                    for (let circleY = 25; circleY < cardSize.height; circleY += 50) {
+                        this.ctx.beginPath();
+                        this.ctx.arc(circleX, circleY, 8, 0, 2 * Math.PI);
+                        this.ctx.stroke();
+                    }
+                }
+                break;
+            case 'waves':
+                for (let waveY = 0; waveY < cardSize.height; waveY += 30) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, waveY);
+                    for (let x = 0; x <= cardSize.width; x += 10) {
+                        const y = waveY + Math.sin(x / 20) * 5;
+                        this.ctx.lineTo(x, y);
+                    }
+                    this.ctx.stroke();
+                }
+                break;
+            case 'crosshatch':
+                // Diagonal lines one direction
+                for (let line = -cardSize.height; line < cardSize.width + cardSize.height; line += 15) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(line, 0);
+                    this.ctx.lineTo(line - cardSize.height, cardSize.height);
+                    this.ctx.stroke();
+                }
+                // Diagonal lines other direction
+                for (let line = 0; line < cardSize.width + cardSize.height; line += 15) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(line, 0);
+                    this.ctx.lineTo(line + cardSize.height, cardSize.height);
+                    this.ctx.stroke();
+                }
+                break;
+            case 'paper':
+                // Subtle paper texture with random dots
+                for (let i = 0; i < 200; i++) {
+                    const x = Math.random() * cardSize.width;
+                    const y = Math.random() * cardSize.height;
+                    this.ctx.globalAlpha = Math.random() * 0.1;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 0.5, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                }
+                break;
+        }
+        
+        this.ctx.restore();
+    }
+
+    drawHexagon(x, y, radius) {
+        this.ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = (i * 60) * Math.PI / 180;
+            const hexX = x + radius * Math.cos(angle);
+            const hexY = y + radius * Math.sin(angle);
+            if (i === 0) {
+                this.ctx.moveTo(hexX, hexY);
+            } else {
+                this.ctx.lineTo(hexX, hexY);
+            }
+        }
+        this.ctx.closePath();
+        this.ctx.stroke();
     }
 
     drawCustomBorder() {
@@ -1005,6 +1715,18 @@ class CardCreator {
         
         this.ctx.globalAlpha = field.opacity || 1;
         
+        // Draw background if specified
+        if (field.backgroundColor && field.backgroundColor !== 'transparent') {
+            this.ctx.fillStyle = field.backgroundColor;
+            if (field.borderRadius && field.borderRadius > 0) {
+                this.ctx.beginPath();
+                this.ctx.roundRect(0, 0, field.width, field.height, field.borderRadius);
+                this.ctx.fill();
+            } else {
+                this.ctx.fillRect(0, 0, field.width, field.height);
+            }
+        }
+        
         // Draw image or placeholder
         if (field.imageData && field.imageData.dataUrl) {
             const img = new Image();
@@ -1021,7 +1743,8 @@ class CardCreator {
             img.src = field.imageData.dataUrl;
         } else {
             // Draw placeholder rectangle
-            this.ctx.fillStyle = '#f8f9fa';
+            const backgroundColor = field.backgroundColor || '#f8f9fa';
+            this.ctx.fillStyle = backgroundColor;
             
             if (field.borderRadius && field.borderRadius > 0) {
                 this.ctx.beginPath();
@@ -1033,15 +1756,49 @@ class CardCreator {
             
             // Draw placeholder text
             this.ctx.fillStyle = '#6c757d';
-            this.ctx.font = '12px Arial';
+            this.ctx.font = '14px Arial';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText(field.placeholder, field.width / 2, field.height / 2 + 4);
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(field.placeholder, field.width / 2, field.height / 2);
         }
         
         // Draw border if specified
         if (field.borderWidth && field.borderWidth > 0) {
             this.ctx.strokeStyle = field.borderColor || '#000000';
             this.ctx.lineWidth = field.borderWidth;
+            
+            // Set border style
+            if (field.borderStyle === 'dashed') {
+                this.ctx.setLineDash([8, 4]);
+            } else if (field.borderStyle === 'dotted') {
+                this.ctx.setLineDash([2, 2]);
+            } else {
+                this.ctx.setLineDash([]);
+            }
+            
+            if (field.borderRadius && field.borderRadius > 0) {
+                this.ctx.beginPath();
+                this.ctx.roundRect(0, 0, field.width, field.height, field.borderRadius);
+                this.ctx.stroke();
+            } else {
+                this.ctx.strokeRect(0, 0, field.width, field.height);
+            }
+        }
+        
+        // Draw border if specified
+        if (field.borderWidth && field.borderWidth > 0) {
+            this.ctx.strokeStyle = field.borderColor || '#000000';
+            this.ctx.lineWidth = field.borderWidth;
+            
+            // Set border style
+            if (field.borderStyle === 'dashed') {
+                this.ctx.setLineDash([8, 4]);
+            } else if (field.borderStyle === 'dotted') {
+                this.ctx.setLineDash([2, 2]);
+            } else {
+                this.ctx.setLineDash([]);
+            }
+            
             if (field.borderRadius && field.borderRadius > 0) {
                 this.ctx.beginPath();
                 this.ctx.roundRect(0, 0, field.width, field.height, field.borderRadius);
@@ -1162,8 +1919,12 @@ class CardCreator {
 
     handleCanvasMouseDown(e) {
         const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const rawX = e.clientX - rect.left;
+        const rawY = e.clientY - rect.top;
+        
+        // Convert display coordinates to canvas coordinates
+        const x = (rawX / this.displayScale) / this.canvasScale;
+        const y = (rawY / this.displayScale) / this.canvasScale;
         
         const clickedElement = this.getElementAtPosition(x, y);
         
@@ -1176,28 +1937,36 @@ class CardCreator {
                 y: y - element.y
             };
             this.canvas.style.cursor = 'grabbing';
+            this.showElementProperties(clickedElement);
         }
     }
 
     handleCanvasMouseMove(e) {
         const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const rawX = e.clientX - rect.left;
+        const rawY = e.clientY - rect.top;
+        
+        // Convert display coordinates to canvas coordinates
+        const x = (rawX / this.displayScale) / this.canvasScale;
+        const y = (rawY / this.displayScale) / this.canvasScale;
         
         if (this.isDragging && this.selectedElement) {
             const element = this.getElementData(this.selectedElement);
             let newX = x - this.dragOffset.x;
             let newY = y - this.dragOffset.y;
             
-            // Snap to grid if enabled
+            // Snap to grid if enabled (grid is in original card coordinates)
             if (this.snapToGrid) {
                 newX = Math.round(newX / this.gridSize) * this.gridSize;
                 newY = Math.round(newY / this.gridSize) * this.gridSize;
             }
             
-            // Keep element within canvas bounds
-            newX = Math.max(0, Math.min(this.canvas.width - element.width, newX));
-            newY = Math.max(0, Math.min(this.canvas.height - element.height, newY));
+            // Get the original card size for bounds checking
+            const originalCardSize = this.getCardSize();
+            
+            // Keep element within original card bounds
+            newX = Math.max(0, Math.min(originalCardSize.width - element.width, newX));
+            newY = Math.max(0, Math.min(originalCardSize.height - element.height, newY));
             
             element.x = newX;
             element.y = newY;
@@ -2279,6 +3048,8 @@ Erstellt mit Card Creator`;
     }
 
     initializeCards() {
+        console.log('initializeCards called');
+        console.log('Card count:', this.project.cardCount);
         this.project.cards = [];
         for (let i = 0; i < this.project.cardCount; i++) {
             this.project.cards.push({
@@ -2287,7 +3058,9 @@ Erstellt mit Card Creator`;
                 back: this.createCardSide()
             });
         }
+        console.log('Cards created:', this.project.cards.length);
         this.renderCardsAccordion();
+        console.log('Cards rendered');
     }
 
     createCardSide() {
@@ -2299,37 +3072,63 @@ Erstellt mit Card Creator`;
     }
 
     renderCardsAccordion() {
-        const accordion = document.getElementById('cards-accordion');
-        accordion.innerHTML = '';
+        console.log('renderCardsAccordion called');
+        const cardsGrid = document.getElementById('cards-grid');
+        console.log('cards-grid element:', cardsGrid);
+        if (!cardsGrid) {
+            console.error('cards-grid element not found');
+            return;
+        }
+        cardsGrid.innerHTML = '';
+        
+        // Update cards count display
+        const cardsCount = document.querySelector('.cards-count');
+        if (cardsCount) {
+            cardsCount.textContent = `${this.project.cards.length} Karten erstellt`;
+            console.log('Updated cards count:', this.project.cards.length);
+        } else {
+            console.log('cards-count element not found');
+        }
         
         this.project.cards.forEach((card, index) => {
             const cardElement = document.createElement('div');
-            cardElement.className = 'card-accordion-item';
+            cardElement.className = 'card-item';
             cardElement.innerHTML = `
-                <div class="card-accordion-header" onclick="cardCreator.toggleCardAccordion(${index})">
-                    <span>Karte ${card.id}</span>
+                <div class="card-header">
+                    <h4>Karte ${card.id}</h4>
                     <div class="card-preview-buttons">
-                        <button class="btn btn-sm preview-btn" onclick="event.stopPropagation(); cardCreator.previewCard(${index}, 'front')">👁️ Vorne</button>
-                        <button class="btn btn-sm preview-btn" onclick="event.stopPropagation(); cardCreator.previewCard(${index}, 'back')">👁️ Hinten</button>
-                        <span class="accordion-arrow">▼</span>
+                        <button class="btn btn-sm" onclick="cardCreator.previewCard(${index}, 'front')" title="Vorderseite vorschauen">👁️ Vorne</button>
+                        <button class="btn btn-sm" onclick="cardCreator.previewCard(${index}, 'back')" title="Rückseite vorschauen">👁️ Hinten</button>
+                        <button class="btn btn-sm btn-outline" onclick="cardCreator.deleteCard(${index})" title="Karte löschen">🗑️</button>
                     </div>
                 </div>
-                <div class="card-accordion-content" id="card-content-${index}">
-                    <div style="margin-bottom: 1rem;">
+                <div class="card-content">
+                    <div class="card-side">
                         <strong>Vorderseite</strong>
-                        <div id="card-${index}-front-fields"></div>
+                        <div id="card-${index}-front-fields" class="card-fields"></div>
                     </div>
-                    <div>
+                    <div class="card-side">
                         <strong>Rückseite</strong>
-                        <div id="card-${index}-back-fields"></div>
+                        <div id="card-${index}-back-fields" class="card-fields"></div>
                     </div>
                 </div>
             `;
-            accordion.appendChild(cardElement);
+            cardsGrid.appendChild(cardElement);
             
             // Render field inputs for this card
             this.renderCardFields(index);
         });
+    }
+
+    deleteCard(cardIndex) {
+        if (confirm(`Möchten Sie Karte ${cardIndex + 1} wirklich löschen?`)) {
+            this.project.cards.splice(cardIndex, 1);
+            // Update card IDs
+            this.project.cards.forEach((card, index) => {
+                card.id = index + 1;
+            });
+            this.renderCardsAccordion();
+        }
     }
 
     previewCard(cardIndex, side) {
@@ -2402,7 +3201,9 @@ Erstellt mit Card Creator`;
     renderTextureToCanvas(ctx, texture, x, y, size) {
         if (texture === 'none') return;
         
+        ctx.save();
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
         ctx.lineWidth = 1;
         
         switch (texture) {
@@ -2437,7 +3238,91 @@ Erstellt mit Card Creator`;
                     ctx.stroke();
                 }
                 break;
+            case 'diagonal':
+                for (let line = -size.height; line < size.width + size.height; line += 25) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + line, y);
+                    ctx.lineTo(x + line - size.height, y + size.height);
+                    ctx.stroke();
+                }
+                break;
+            case 'hexagon':
+                const hexRadius = 15;
+                const hexHeight = hexRadius * Math.sqrt(3);
+                for (let row = 0; row < size.height / hexHeight + 2; row++) {
+                    for (let col = 0; col < size.width / (hexRadius * 1.5) + 2; col++) {
+                        const hexX = x + col * hexRadius * 1.5;
+                        const hexY = y + row * hexHeight + (col % 2) * hexHeight / 2;
+                        this.drawHexagonToCanvas(ctx, hexX, hexY, hexRadius * 0.8);
+                    }
+                }
+                break;
+            case 'circles':
+                for (let circleX = x + 25; circleX < x + size.width; circleX += 50) {
+                    for (let circleY = y + 25; circleY < y + size.height; circleY += 50) {
+                        ctx.beginPath();
+                        ctx.arc(circleX, circleY, 8, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    }
+                }
+                break;
+            case 'waves':
+                for (let waveY = y; waveY < y + size.height; waveY += 30) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, waveY);
+                    for (let waveX = x; waveX <= x + size.width; waveX += 10) {
+                        const waveYPos = waveY + Math.sin((waveX - x) / 20) * 5;
+                        ctx.lineTo(waveX, waveYPos);
+                    }
+                    ctx.stroke();
+                }
+                break;
+            case 'crosshatch':
+                // Diagonal lines one direction
+                for (let line = -size.height; line < size.width + size.height; line += 15) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + line, y);
+                    ctx.lineTo(x + line - size.height, y + size.height);
+                    ctx.stroke();
+                }
+                // Diagonal lines other direction
+                for (let line = 0; line < size.width + size.height; line += 15) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + line, y);
+                    ctx.lineTo(x + line + size.height, y + size.height);
+                    ctx.stroke();
+                }
+                break;
+            case 'paper':
+                // Subtle paper texture with random dots
+                for (let i = 0; i < 200; i++) {
+                    const dotX = x + Math.random() * size.width;
+                    const dotY = y + Math.random() * size.height;
+                    ctx.globalAlpha = Math.random() * 0.1;
+                    ctx.beginPath();
+                    ctx.arc(dotX, dotY, 0.5, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+                break;
         }
+        
+        ctx.restore();
+    }
+
+    drawHexagonToCanvas(ctx, x, y, radius) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = (i * 60) * Math.PI / 180;
+            const hexX = x + radius * Math.cos(angle);
+            const hexY = y + radius * Math.sin(angle);
+            if (i === 0) {
+                ctx.moveTo(hexX, hexY);
+            } else {
+                ctx.lineTo(hexX, hexY);
+            }
+        }
+        ctx.closePath();
+        ctx.stroke();
     }
 
     renderTextElementToCanvas(ctx, element, content) {
@@ -2802,12 +3687,6 @@ Erstellt mit Card Creator`;
         
         ctx.fillText(text, watermarkX, watermarkY);
         ctx.restore();
-    }
-
-    updateCanvasPreview() {
-        if (this.canvas && this.ctx) {
-            this.redrawCanvas();
-        }
     }
 
     renderCardFields(cardIndex) {
@@ -3532,7 +4411,43 @@ Erstellt mit Card Creator`;
 // Initialize the application when the page loads
 let cardCreator;
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded event fired');
     cardCreator = new CardCreator();
+    window.cardCreator = cardCreator; // Make globally accessible
+    console.log('CardCreator instance created and made global');
+
+    // Add global navigation functions for easy access
+    window.goToProjectSetup = () => cardCreator.goToProjectSetup();
+    window.goToDesign = () => cardCreator.goToDesign();
+    window.goToCards = () => cardCreator.goToCards();
+    window.goToExport = () => cardCreator.goToExport();
+    
+    // Add debugging function
+    window.testTabSwitch = (tabId, index) => {
+        console.log('Manual tab switch test:', tabId, index);
+        cardCreator.switchTab(tabId, index);
+    };
+    
+    // Add function to check tab states
+    window.checkTabStates = () => {
+        console.log('=== TAB STATES ===');
+        document.querySelectorAll('.tab-content').forEach(content => {
+            console.log(`${content.id}: classes="${content.className}", display="${window.getComputedStyle(content).display}"`);
+        });
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            console.log(`Tab btn ${btn.getAttribute('data-tab')}: classes="${btn.className}"`);
+        });
+    };
+    
+    console.log('Global navigation and debugging functions added');
+    
+    // Force initial tab state after a short delay
+    setTimeout(() => {
+        console.log('Forcing initial tab state...');
+        if (cardCreator) {
+            cardCreator.switchTab('project-setup', 0);
+        }
+    }, 1000);
 });
 
 // Service Worker registration for PWA functionality

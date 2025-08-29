@@ -12,11 +12,13 @@ let masterCard = {
     borderColor: '#000000',
     watermark: '',
     backgroundImage: null,
-    textboxes: []
+    textboxes: [],
+    imageboxes: []
 };
 
 let cardContents = [];
 let textboxCounter = 0;
+let imageboxCounter = 0;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
@@ -34,6 +36,16 @@ function initializeTabs() {
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             const targetTab = button.getAttribute('data-tab');
+            
+            // Save current tab data before switching
+            if (currentTab === 'project') {
+                saveProjectConfig();
+            } else if (currentTab === 'design') {
+                saveMasterCard();
+            } else if (currentTab === 'content') {
+                saveCardContents();
+            }
+            
             switchTab(targetTab);
         });
     });
@@ -68,6 +80,19 @@ function switchTab(tabName) {
     document.getElementById(tabName).classList.add('active');
 
     currentTab = tabName;
+
+    // Execute tab-specific initialization functions
+    if (tabName === 'content') {
+        // Ensure content inputs are generated when switching to content tab
+        if (masterCard.textboxes.length > 0 || masterCard.imageboxes.length > 0) {
+            generateContentInputs();
+        }
+    } else if (tabName === 'export') {
+        // Ensure PDF preview is generated when switching to export tab
+        if (cardContents.length > 0) {
+            generatePDFPreview();
+        }
+    }
 }
 
 // Project Setup (Tab 1)
@@ -198,6 +223,7 @@ function initializeDesign() {
     const watermarkText = document.getElementById('watermarkText');
     const backgroundImage = document.getElementById('backgroundImage');
     const addTextboxBtn = document.getElementById('addTextbox');
+    const addImageboxBtn = document.getElementById('addImagebox');
 
     // Background color
     backgroundColor.addEventListener('change', () => {
@@ -240,6 +266,9 @@ function initializeDesign() {
     // Add textbox
     addTextboxBtn.addEventListener('click', addTextbox);
 
+    // Add imagebox
+    addImageboxBtn.addEventListener('click', addImagebox);
+
     // Initialize card preview
     updateCardPreview();
 }
@@ -257,8 +286,29 @@ function addTextbox() {
     };
 
     masterCard.textboxes.push(textbox);
-    updateTextboxList();
+    updateElementLists();
     updateCardPreview();
+}
+
+function addImagebox() {
+    const imagebox = {
+        id: ++imageboxCounter,
+        name: 'Bild ' + imageboxCounter,
+        x: 10,
+        y: 50,
+        width: 60,
+        height: 60,
+        image: null
+    };
+
+    masterCard.imageboxes.push(imagebox);
+    updateElementLists();
+    updateCardPreview();
+}
+
+function updateElementLists() {
+    updateTextboxList();
+    updateImageboxList();
 }
 
 function updateTextboxList() {
@@ -298,7 +348,51 @@ function updateTextboxColor(index, color) {
 
 function removeTextbox(index) {
     masterCard.textboxes.splice(index, 1);
-    updateTextboxList();
+    updateElementLists();
+    updateCardPreview();
+}
+
+function updateImageboxList() {
+    const list = document.getElementById('imageboxList');
+    list.innerHTML = '';
+
+    masterCard.imageboxes.forEach((imagebox, index) => {
+        const item = document.createElement('div');
+        item.className = 'imagebox-item';
+        item.innerHTML = `
+            <label>Bild ${imagebox.id}:</label>
+            <input type="text" value="${imagebox.name}" onchange="updateImageboxName(${index}, this.value)" placeholder="Bildname">
+            <div style="display: flex; gap: 10px; margin-top: 5px; align-items: center;">
+                <input type="file" accept="image/*" onchange="updateImageboxImage(${index}, this)" style="flex: 1;">
+                <button class="btn btn-danger" onclick="removeImagebox(${index})">Löschen</button>
+            </div>
+            ${imagebox.image ? '<div style="margin-top: 5px; font-size: 12px; color: #0d7377;">✓ Bild hochgeladen</div>' : ''}
+        `;
+        list.appendChild(item);
+    });
+}
+
+function updateImageboxName(index, name) {
+    masterCard.imageboxes[index].name = name;
+    updateCardPreview();
+}
+
+function updateImageboxImage(index, input) {
+    const file = input.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            masterCard.imageboxes[index].image = e.target.result;
+            updateElementLists();
+            updateCardPreview();
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeImagebox(index) {
+    masterCard.imageboxes.splice(index, 1);
+    updateElementLists();
     updateCardPreview();
 }
 
@@ -336,9 +430,33 @@ function updateCardPreview() {
         textboxElement.style.color = textbox.fontColor;
         
         // Make draggable
-        makeDraggable(textboxElement, index);
+        makeDraggable(textboxElement, 'textbox', index);
         
         card.appendChild(textboxElement);
+    });
+
+    // Add imageboxes
+    masterCard.imageboxes.forEach((imagebox, index) => {
+        const imageboxElement = document.createElement('div');
+        imageboxElement.className = 'card-imagebox';
+        imageboxElement.style.left = imagebox.x + 'px';
+        imageboxElement.style.top = imagebox.y + 'px';
+        imageboxElement.style.width = imagebox.width + 'px';
+        imageboxElement.style.height = imagebox.height + 'px';
+        
+        if (imagebox.image) {
+            const img = document.createElement('img');
+            img.src = imagebox.image;
+            img.alt = imagebox.name;
+            imageboxElement.appendChild(img);
+        } else {
+            imageboxElement.textContent = imagebox.name;
+        }
+        
+        // Make draggable
+        makeDraggable(imageboxElement, 'imagebox', index);
+        
+        card.appendChild(imageboxElement);
     });
 
     // Add watermark
@@ -350,7 +468,7 @@ function updateCardPreview() {
     }
 }
 
-function makeDraggable(element, index) {
+function makeDraggable(element, type, index) {
     let isDragging = false;
     let startX, startY, initialX, initialY;
 
@@ -360,8 +478,14 @@ function makeDraggable(element, index) {
         
         startX = e.clientX;
         startY = e.clientY;
-        initialX = masterCard.textboxes[index].x;
-        initialY = masterCard.textboxes[index].y;
+        
+        if (type === 'textbox') {
+            initialX = masterCard.textboxes[index].x;
+            initialY = masterCard.textboxes[index].y;
+        } else if (type === 'imagebox') {
+            initialX = masterCard.imageboxes[index].x;
+            initialY = masterCard.imageboxes[index].y;
+        }
         
         e.preventDefault();
     });
@@ -372,11 +496,25 @@ function makeDraggable(element, index) {
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
         
-        const newX = Math.max(0, Math.min(200 - masterCard.textboxes[index].width, initialX + deltaX));
-        const newY = Math.max(0, Math.min(280 - masterCard.textboxes[index].height, initialY + deltaY));
+        let elementWidth, elementHeight;
+        if (type === 'textbox') {
+            elementWidth = masterCard.textboxes[index].width;
+            elementHeight = masterCard.textboxes[index].height;
+        } else if (type === 'imagebox') {
+            elementWidth = masterCard.imageboxes[index].width;
+            elementHeight = masterCard.imageboxes[index].height;
+        }
         
-        masterCard.textboxes[index].x = newX;
-        masterCard.textboxes[index].y = newY;
+        const newX = Math.max(0, Math.min(200 - elementWidth, initialX + deltaX));
+        const newY = Math.max(0, Math.min(280 - elementHeight, initialY + deltaY));
+        
+        if (type === 'textbox') {
+            masterCard.textboxes[index].x = newX;
+            masterCard.textboxes[index].y = newY;
+        } else if (type === 'imagebox') {
+            masterCard.imageboxes[index].x = newX;
+            masterCard.imageboxes[index].y = newY;
+        }
         
         element.style.left = newX + 'px';
         element.style.top = newY + 'px';
@@ -409,12 +547,27 @@ function generateContentInputs() {
         masterCard.textboxes.forEach((textbox, textboxIndex) => {
             textboxInputs += `
                 <div class="textbox-input">
-                    <label>Textbox ${textbox.id}:</label>
+                    <label>📝 Textbox ${textbox.id}:</label>
                     <textarea 
                         id="card_${i}_textbox_${textboxIndex}" 
                         placeholder="Inhalt für ${textbox.text}"
-                        onchange="updateCardContent(${i}, ${textboxIndex}, this.value)"
+                        onchange="updateCardContent(${i}, 'textbox', ${textboxIndex}, this.value)"
                     ></textarea>
+                </div>
+            `;
+        });
+
+        let imageboxInputs = '';
+        masterCard.imageboxes.forEach((imagebox, imageboxIndex) => {
+            imageboxInputs += `
+                <div class="textbox-input">
+                    <label>🖼️ Bild ${imagebox.id}:</label>
+                    <input 
+                        type="file" 
+                        accept="image/*"
+                        id="card_${i}_imagebox_${imageboxIndex}"
+                        onchange="updateCardImageContent(${i}, ${imageboxIndex}, this)"
+                    >
                 </div>
             `;
         });
@@ -422,6 +575,7 @@ function generateContentInputs() {
         cardInput.innerHTML = `
             <h4>Karte ${i + 1}</h4>
             ${textboxInputs}
+            ${imageboxInputs}
         `;
 
         container.appendChild(cardInput);
@@ -429,14 +583,28 @@ function generateContentInputs() {
         // Initialize card content
         const cardContent = {
             cardIndex: i,
-            textboxes: masterCard.textboxes.map(() => '')
+            textboxes: masterCard.textboxes.map(() => ''),
+            imageboxes: masterCard.imageboxes.map(() => null)
         };
         cardContents.push(cardContent);
     }
 }
 
-function updateCardContent(cardIndex, textboxIndex, value) {
-    cardContents[cardIndex].textboxes[textboxIndex] = value;
+function updateCardContent(cardIndex, type, elementIndex, value) {
+    if (type === 'textbox') {
+        cardContents[cardIndex].textboxes[elementIndex] = value;
+    }
+}
+
+function updateCardImageContent(cardIndex, imageboxIndex, input) {
+    const file = input.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            cardContents[cardIndex].imageboxes[imageboxIndex] = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
 }
 
 function saveCardContents() {
@@ -492,6 +660,37 @@ function createPDFCard(cardContent, cardIndex) {
         textboxElement.style.color = textbox.fontColor;
         
         card.appendChild(textboxElement);
+    });
+
+    // Add imageboxes with content
+    masterCard.imageboxes.forEach((imagebox, imageboxIndex) => {
+        const imageboxElement = document.createElement('div');
+        imageboxElement.className = 'pdf-card-textbox';
+        imageboxElement.style.left = (imagebox.x * 0.5) + 'px';
+        imageboxElement.style.top = (imagebox.y * 0.5) + 'px';
+        imageboxElement.style.width = (imagebox.width * 0.5) + 'px';
+        imageboxElement.style.height = (imagebox.height * 0.5) + 'px';
+        imageboxElement.style.overflow = 'hidden';
+        
+        const imageData = cardContent.imageboxes[imageboxIndex] || imagebox.image;
+        if (imageData) {
+            const img = document.createElement('img');
+            img.src = imageData;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            imageboxElement.appendChild(img);
+        } else {
+            imageboxElement.style.border = '1px dashed #ccc';
+            imageboxElement.style.display = 'flex';
+            imageboxElement.style.alignItems = 'center';
+            imageboxElement.style.justifyContent = 'center';
+            imageboxElement.style.fontSize = '6px';
+            imageboxElement.style.color = '#999';
+            imageboxElement.textContent = imagebox.name;
+        }
+        
+        card.appendChild(imageboxElement);
     });
 
     // Add watermark
@@ -582,11 +781,13 @@ function resetApp() {
         borderColor: '#000000',
         watermark: '',
         backgroundImage: null,
-        textboxes: []
+        textboxes: [],
+        imageboxes: []
     };
     
     cardContents = [];
     textboxCounter = 0;
+    imageboxCounter = 0;
     
     switchTab('project');
     updateGridPreview();
@@ -597,4 +798,8 @@ window.updateTextboxText = updateTextboxText;
 window.updateTextboxFontSize = updateTextboxFontSize;
 window.updateTextboxColor = updateTextboxColor;
 window.removeTextbox = removeTextbox;
+window.updateImageboxName = updateImageboxName;
+window.updateImageboxImage = updateImageboxImage;
+window.removeImagebox = removeImagebox;
 window.updateCardContent = updateCardContent;
+window.updateCardImageContent = updateCardImageContent;

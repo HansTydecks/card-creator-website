@@ -907,18 +907,19 @@ function updateImageboxList() {
         const item = document.createElement('div');
         item.className = 'imagebox-item';
         item.innerHTML = `
-            <label>Bild ${imagebox.id}:</label>
-            <input type="text" value="${imagebox.name}" onchange="updateImageboxName(${index}, this.value)" placeholder="Bildname">
+            <label>Bildbereich ${imagebox.id}:</label>
+            <input type="text" value="${imagebox.name}" onchange="updateImageboxName(${index}, this.value)" placeholder="Name für Bildbereich">
             <div style="display: flex; gap: 10px; margin-top: 5px; align-items: center;">
-                <input type="file" accept="image/*" onchange="updateImageboxImage(${index}, this)" style="flex: 1;">
-                <button class="btn btn-danger" onclick="removeImagebox(${index})">Löschen</button>
+                <button class="btn btn-danger" onclick="removeImagebox(${index})">Bildbereich löschen</button>
             </div>
             <div style="margin-top: 10px;">
                 <button class="btn btn-secondary" onclick="selectImageForEditing(${index})" style="font-size: 12px; padding: 5px 10px;">
-                    Bild-Eigenschaften bearbeiten
+                    Bereich-Eigenschaften bearbeiten
                 </button>
             </div>
-            ${imagebox.image ? '<div style="margin-top: 5px; font-size: 12px; color: #0d7377;">✓ Bild hochgeladen</div>' : ''}
+            <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                💡 Bilder werden später bei den Karteninhalten hochgeladen
+            </div>
         `;
         list.appendChild(item);
     });
@@ -1197,6 +1198,12 @@ function makeDraggable(element, type, index) {
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
         
+        // Get current card dimensions dynamically
+        const card = document.getElementById('masterCard');
+        const cardRect = card.getBoundingClientRect();
+        const cardWidth = cardRect.width;
+        const cardHeight = cardRect.height;
+        
         let elementWidth, elementHeight;
         if (type === 'textbox') {
             elementWidth = masterCard[currentSide].textboxes[index].width;
@@ -1206,8 +1213,8 @@ function makeDraggable(element, type, index) {
             elementHeight = masterCard[currentSide].imageboxes[index].height;
         }
         
-        const newX = Math.max(0, Math.min(200 - elementWidth, initialX + deltaX));
-        const newY = Math.max(0, Math.min(280 - elementHeight, initialY + deltaY));
+        const newX = Math.max(0, Math.min(cardWidth - elementWidth, initialX + deltaX));
+        const newY = Math.max(0, Math.min(cardHeight - elementHeight, initialY + deltaY));
         
         if (type === 'textbox') {
             masterCard[currentSide].textboxes[index].x = newX;

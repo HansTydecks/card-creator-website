@@ -448,6 +448,7 @@ header p {
 }
 
 .card-template {
+    /* Dimensions will be set dynamically by JavaScript based on grid */
     width: 200px;
     height: 280px;
     background-color: white;
@@ -455,6 +456,7 @@ header p {
     position: relative;
     overflow: hidden;
     cursor: pointer;
+    transition: width 0.3s ease, height 0.3s ease; /* Smooth dimension changes */
 }
 
 /* Textbox Controls */

@@ -189,6 +189,7 @@ function switchTab(tabName) {
         // Initialize color pickers when switching to design tab
         setTimeout(() => {
             initColorPickers();
+            updateCardPreviewDimensions(); // Ensure correct card dimensions
         }, 50);
     } else if (tabName === 'content') {
         // Only generate content inputs if they don't exist or if master card has changed
@@ -494,6 +495,40 @@ function updateGridPreview() {
         cell.textContent = `Karte ${i + 1}`;
         preview.appendChild(cell);
     }
+    
+    // Update card preview dimensions to match grid proportions
+    updateCardPreviewDimensions();
+}
+
+function updateCardPreviewDimensions() {
+    const cardTemplate = document.getElementById('masterCard');
+    if (!cardTemplate) return;
+    
+    const { width, height } = projectConfig.grid;
+    
+    // Calculate card aspect ratio based on A4 paper (210mm x 297mm) divided by grid
+    const a4Width = 210;
+    const a4Height = 297;
+    
+    // Account for margins (approximately 20mm on each side)
+    const usableWidth = a4Width - 40;
+    const usableHeight = a4Height - 40;
+    
+    const cardWidth = usableWidth / width;
+    const cardHeight = usableHeight / height;
+    
+    // Calculate aspect ratio
+    const aspectRatio = cardWidth / cardHeight;
+    
+    // Set preview dimensions - base height of 280px, width calculated from aspect ratio
+    const previewHeight = 280;
+    const previewWidth = previewHeight * aspectRatio;
+    
+    // Apply dimensions
+    cardTemplate.style.width = `${previewWidth}px`;
+    cardTemplate.style.height = `${previewHeight}px`;
+    
+    console.log(`Grid: ${width}x${height}, Card dimensions: ${cardWidth.toFixed(1)}mm x ${cardHeight.toFixed(1)}mm, Preview: ${previewWidth.toFixed(0)}px x ${previewHeight}px`);
 }
 
 function saveProjectConfig() {
@@ -754,6 +789,9 @@ function removeImagebox(index) {
 function updateCardPreview() {
     const card = document.getElementById('masterCard');
     const currentCardSide = masterCard[currentSide];
+    
+    // Ensure card dimensions match current grid proportions
+    updateCardPreviewDimensions();
     
     // Apply basic styles
     card.style.backgroundColor = currentCardSide.backgroundColor;
@@ -1140,7 +1178,7 @@ function generatePDFPreview() {
         backPageContainer.style.marginBottom = '20px';
         
         const backTitle = document.createElement('h4');
-        backTitle.textContent = 'Rückseiten (gespiegelt für deckungsgleichen Druck)';
+        backTitle.textContent = 'Rückseiten';
         backTitle.style.textAlign = 'center';
         backTitle.style.color = 'white';
         backTitle.style.margin = '0 0 10px 0';
@@ -1151,11 +1189,11 @@ function generatePDFPreview() {
         backPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
         backPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
 
-        // Reverse order for back sides to match front when printed double-sided
-        for (let i = totalCards - 1; i >= 0; i--) {
+        // Same order as front sides (no reversal needed, printer handles alignment)
+        for (let i = 0; i < totalCards; i++) {
             if (i < actualCards && i < cardContents.length) {
                 const backCard = createPDFCard(cardContents[i], i, 'back');
-                backCard.style.transform = 'scaleX(-1)'; // Mirror for proper alignment
+                // No mirroring - printer will handle proper alignment
                 backPage.appendChild(backCard);
             } else {
                 // Create empty placeholder card
@@ -1163,7 +1201,7 @@ function generatePDFPreview() {
                 emptyCard.className = 'pdf-card';
                 emptyCard.style.backgroundColor = '#f5f5f5';
                 emptyCard.style.border = '1px dashed #ccc';
-                emptyCard.style.transform = 'scaleX(-1)';
+                // No mirroring for empty cards either
                 emptyCard.style.display = 'flex';
                 emptyCard.style.alignItems = 'center';
                 emptyCard.style.justifyContent = 'center';
@@ -1363,10 +1401,10 @@ async function generatePDF() {
     if (hasBackContent) {
         pdf.addPage();
         
-        // Create cards for back side (reversed order for double-sided printing)
-        for (let i = totalCards - 1; i >= 0; i--) {
-            const row = Math.floor((totalCards - 1 - i) / projectConfig.grid.width);
-            const col = (totalCards - 1 - i) % projectConfig.grid.width;
+        // Create cards for back side (same order as front side)
+        for (let i = 0; i < totalCards; i++) {
+            const row = Math.floor(i / projectConfig.grid.width);
+            const col = i % projectConfig.grid.width;
             
             const x = margin + (col * cardWidth);
             const y = margin + (row * cardHeight);

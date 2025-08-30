@@ -769,48 +769,85 @@ function generatePDFPreview() {
     const preview = document.getElementById('pdfPreview');
     preview.innerHTML = '<h3>PDF Vorschau:</h3>';
 
+    // Check if we have back side content
+    const hasBackContent = masterCard.back && (
+        (masterCard.back.textboxes && masterCard.back.textboxes.length > 0) ||
+        (masterCard.back.imageboxes && masterCard.back.imageboxes.length > 0)
+    );
+
+    // Create container for front page
+    const frontPageContainer = document.createElement('div');
+    frontPageContainer.style.marginBottom = '20px';
+    
+    const frontTitle = document.createElement('h4');
+    frontTitle.textContent = 'Vorderseiten';
+    frontTitle.style.textAlign = 'center';
+    frontTitle.style.color = 'white';
+    frontTitle.style.margin = '0 0 10px 0';
+    frontPageContainer.appendChild(frontTitle);
+
     // Create front sides page
     const frontPage = document.createElement('div');
     frontPage.className = 'pdf-page';
     frontPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
     frontPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
 
-    const frontTitle = document.createElement('h4');
-    frontTitle.textContent = 'Vorderseiten';
-    frontTitle.style.gridColumn = '1 / -1';
-    frontTitle.style.textAlign = 'center';
-    frontTitle.style.margin = '0 0 10px 0';
-    frontPage.appendChild(frontTitle);
+    // Ensure we have the right number of cards
+    const totalCards = projectConfig.cardCount;
+    for (let i = 0; i < totalCards; i++) {
+        if (i < cardContents.length) {
+            const frontCard = createPDFCard(cardContents[i], i, 'front');
+            frontPage.appendChild(frontCard);
+        } else {
+            // Create empty placeholder card
+            const emptyCard = document.createElement('div');
+            emptyCard.className = 'pdf-card';
+            emptyCard.style.backgroundColor = '#f5f5f5';
+            emptyCard.style.border = '1px dashed #ccc';
+            frontPage.appendChild(emptyCard);
+        }
+    }
 
-    cardContents.forEach((cardContent, index) => {
-        const frontCard = createPDFCard(cardContent, index, 'front');
-        frontPage.appendChild(frontCard);
-    });
+    frontPageContainer.appendChild(frontPage);
+    preview.appendChild(frontPageContainer);
 
-    preview.appendChild(frontPage);
+    // Create back sides page only if there's back content
+    if (hasBackContent) {
+        const backPageContainer = document.createElement('div');
+        backPageContainer.style.marginBottom = '20px';
+        
+        const backTitle = document.createElement('h4');
+        backTitle.textContent = 'Rückseiten (gespiegelt für deckungsgleichen Druck)';
+        backTitle.style.textAlign = 'center';
+        backTitle.style.color = 'white';
+        backTitle.style.margin = '0 0 10px 0';
+        backPageContainer.appendChild(backTitle);
 
-    // Create back sides page
-    const backPage = document.createElement('div');
-    backPage.className = 'pdf-page';
-    backPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
-    backPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
+        const backPage = document.createElement('div');
+        backPage.className = 'pdf-page';
+        backPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
+        backPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
 
-    const backTitle = document.createElement('h4');
-    backTitle.textContent = 'Rückseiten (gespiegelt für deckungsgleichen Druck)';
-    backTitle.style.gridColumn = '1 / -1';
-    backTitle.style.textAlign = 'center';
-    backTitle.style.margin = '0 0 10px 0';
-    backPage.appendChild(backTitle);
+        // Reverse order for back sides to match front when printed double-sided
+        for (let i = totalCards - 1; i >= 0; i--) {
+            if (i < cardContents.length) {
+                const backCard = createPDFCard(cardContents[i], i, 'back');
+                backCard.style.transform = 'scaleX(-1)'; // Mirror for proper alignment
+                backPage.appendChild(backCard);
+            } else {
+                // Create empty placeholder card
+                const emptyCard = document.createElement('div');
+                emptyCard.className = 'pdf-card';
+                emptyCard.style.backgroundColor = '#f5f5f5';
+                emptyCard.style.border = '1px dashed #ccc';
+                emptyCard.style.transform = 'scaleX(-1)';
+                backPage.appendChild(emptyCard);
+            }
+        }
 
-    // Reverse order for back sides to match front when printed double-sided
-    cardContents.slice().reverse().forEach((cardContent, index) => {
-        const originalIndex = cardContents.length - 1 - index;
-        const backCard = createPDFCard(cardContent, originalIndex, 'back');
-        backCard.style.transform = 'scaleX(-1)'; // Mirror for proper alignment
-        backPage.appendChild(backCard);
-    });
-
-    preview.appendChild(backPage);
+        backPageContainer.appendChild(backPage);
+        preview.appendChild(backPageContainer);
+    }
 }
 
 function createPDFCard(cardContent, cardIndex, side) {
@@ -818,7 +855,7 @@ function createPDFCard(cardContent, cardIndex, side) {
     card.className = 'pdf-card';
     
     const cardSideData = masterCard[side];
-    const contentSideData = cardContent[side];
+    const contentSideData = cardContent[side] || { textboxes: [], imageboxes: [] };
     
     // Apply master card styles
     card.style.backgroundColor = cardSideData.backgroundColor;
@@ -833,52 +870,56 @@ function createPDFCard(cardContent, cardIndex, side) {
     }
 
     // Add textboxes with content
-    cardSideData.textboxes.forEach((textbox, textboxIndex) => {
-        const textboxElement = document.createElement('div');
-        textboxElement.className = 'pdf-card-textbox';
-        textboxElement.textContent = contentSideData.textboxes[textboxIndex] || textbox.text;
-        
-        // Scale positions and sizes for PDF
-        textboxElement.style.left = (textbox.x * 0.5) + 'px';
-        textboxElement.style.top = (textbox.y * 0.5) + 'px';
-        textboxElement.style.width = (textbox.width * 0.5) + 'px';
-        textboxElement.style.height = (textbox.height * 0.5) + 'px';
-        textboxElement.style.fontSize = (textbox.fontSize * 0.4) + 'px';
-        textboxElement.style.color = textbox.fontColor;
-        
-        card.appendChild(textboxElement);
-    });
+    if (cardSideData.textboxes) {
+        cardSideData.textboxes.forEach((textbox, textboxIndex) => {
+            const textboxElement = document.createElement('div');
+            textboxElement.className = 'pdf-card-textbox';
+            textboxElement.textContent = contentSideData.textboxes?.[textboxIndex] || textbox.text;
+            
+            // Scale positions and sizes for PDF
+            textboxElement.style.left = (textbox.x * 0.5) + 'px';
+            textboxElement.style.top = (textbox.y * 0.5) + 'px';
+            textboxElement.style.width = (textbox.width * 0.5) + 'px';
+            textboxElement.style.height = (textbox.height * 0.5) + 'px';
+            textboxElement.style.fontSize = (textbox.fontSize * 0.4) + 'px';
+            textboxElement.style.color = textbox.fontColor;
+            
+            card.appendChild(textboxElement);
+        });
+    }
 
     // Add imageboxes with content
-    cardSideData.imageboxes.forEach((imagebox, imageboxIndex) => {
-        const imageboxElement = document.createElement('div');
-        imageboxElement.className = 'pdf-card-textbox';
-        imageboxElement.style.left = (imagebox.x * 0.5) + 'px';
-        imageboxElement.style.top = (imagebox.y * 0.5) + 'px';
-        imageboxElement.style.width = (imagebox.width * 0.5) + 'px';
-        imageboxElement.style.height = (imagebox.height * 0.5) + 'px';
-        imageboxElement.style.overflow = 'hidden';
-        
-        const imageData = contentSideData.imageboxes[imageboxIndex] || imagebox.image;
-        if (imageData) {
-            const img = document.createElement('img');
-            img.src = imageData;
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.objectFit = 'cover';
-            imageboxElement.appendChild(img);
-        } else {
-            imageboxElement.style.border = '1px dashed #ccc';
-            imageboxElement.style.display = 'flex';
-            imageboxElement.style.alignItems = 'center';
-            imageboxElement.style.justifyContent = 'center';
-            imageboxElement.style.fontSize = '6px';
-            imageboxElement.style.color = '#999';
-            imageboxElement.textContent = imagebox.name;
-        }
-        
-        card.appendChild(imageboxElement);
-    });
+    if (cardSideData.imageboxes) {
+        cardSideData.imageboxes.forEach((imagebox, imageboxIndex) => {
+            const imageboxElement = document.createElement('div');
+            imageboxElement.className = 'pdf-card-textbox';
+            imageboxElement.style.left = (imagebox.x * 0.5) + 'px';
+            imageboxElement.style.top = (imagebox.y * 0.5) + 'px';
+            imageboxElement.style.width = (imagebox.width * 0.5) + 'px';
+            imageboxElement.style.height = (imagebox.height * 0.5) + 'px';
+            imageboxElement.style.overflow = 'hidden';
+            
+            const imageData = contentSideData.imageboxes?.[imageboxIndex]?.src || imagebox.image;
+            if (imageData) {
+                const img = document.createElement('img');
+                img.src = imageData;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                imageboxElement.appendChild(img);
+            } else {
+                imageboxElement.style.border = '1px dashed #ccc';
+                imageboxElement.style.display = 'flex';
+                imageboxElement.style.alignItems = 'center';
+                imageboxElement.style.justifyContent = 'center';
+                imageboxElement.style.fontSize = '6px';
+                imageboxElement.style.color = '#999';
+                imageboxElement.textContent = imagebox.name;
+            }
+            
+            card.appendChild(imageboxElement);
+        });
+    }
 
     // Add watermark
     if (cardSideData.watermark) {
@@ -906,46 +947,150 @@ async function generatePDF() {
     const cardWidth = availableWidth / projectConfig.grid.width;
     const cardHeight = availableHeight / projectConfig.grid.height;
 
-    // Create cards
-    for (let i = 0; i < cardContents.length; i++) {
+    // Create cards for front side
+    const totalCards = projectConfig.cardCount;
+    for (let i = 0; i < totalCards; i++) {
         const row = Math.floor(i / projectConfig.grid.width);
         const col = i % projectConfig.grid.width;
         
         const x = margin + (col * cardWidth);
         const y = margin + (row * cardHeight);
 
+        // Get current side data
+        const currentSide = masterCard.front;
+
         // Draw card background
-        pdf.setFillColor(masterCard.backgroundColor);
+        pdf.setFillColor(currentSide.backgroundColor);
         pdf.rect(x, y, cardWidth, cardHeight, 'F');
 
         // Draw border
-        pdf.setDrawColor(masterCard.borderColor);
-        pdf.setLineWidth(masterCard.borderWidth * 0.1);
+        pdf.setDrawColor(currentSide.borderColor);
+        pdf.setLineWidth(currentSide.borderWidth * 0.1);
         pdf.rect(x, y, cardWidth, cardHeight);
 
         // Add textboxes
-        masterCard.textboxes.forEach((textbox, textboxIndex) => {
-            const content = cardContents[i].textboxes[textboxIndex] || textbox.text;
-            
-            // Scale textbox position and size
-            const textX = x + (textbox.x * cardWidth / 200);
-            const textY = y + (textbox.y * cardHeight / 280) + (textbox.fontSize * 0.1);
-            
-            pdf.setFontSize(textbox.fontSize * 0.3);
-            pdf.setTextColor(textbox.fontColor);
-            
-            // Split text into lines that fit the textbox width
-            const maxWidth = (textbox.width * cardWidth / 200);
-            const lines = pdf.splitTextToSize(content, maxWidth);
-            
-            pdf.text(lines, textX, textY);
-        });
+        if (currentSide.textboxes && i < cardContents.length) {
+            currentSide.textboxes.forEach((textbox, textboxIndex) => {
+                const content = cardContents[i].front?.textboxes?.[textboxIndex] || textbox.text;
+                
+                // Scale textbox position and size
+                const textX = x + (textbox.x * cardWidth / 200);
+                const textY = y + (textbox.y * cardHeight / 280) + (textbox.fontSize * 0.1);
+                
+                pdf.setFontSize(textbox.fontSize * 0.3);
+                pdf.setTextColor(textbox.fontColor);
+                
+                // Split text into lines that fit the textbox width
+                const maxWidth = (textbox.width * cardWidth / 200);
+                const lines = pdf.splitTextToSize(content, maxWidth);
+                
+                pdf.text(lines, textX, textY);
+            });
+        }
+
+        // Add images
+        if (currentSide.imageboxes && i < cardContents.length) {
+            currentSide.imageboxes.forEach((imagebox, imageboxIndex) => {
+                const imageData = cardContents[i].front?.imageboxes?.[imageboxIndex];
+                
+                if (imageData && imageData.src) {
+                    const imgX = x + (imagebox.x * cardWidth / 200);
+                    const imgY = y + (imagebox.y * cardHeight / 280);
+                    const imgWidth = imagebox.width * cardWidth / 200;
+                    const imgHeight = imagebox.height * cardHeight / 280;
+                    
+                    try {
+                        pdf.addImage(imageData.src, 'JPEG', imgX, imgY, imgWidth, imgHeight);
+                    } catch (error) {
+                        console.warn('Error adding image to PDF:', error);
+                    }
+                }
+            });
+        }
 
         // Add watermark
-        if (masterCard.watermark) {
+        if (currentSide.watermark) {
             pdf.setFontSize(6);
             pdf.setTextColor(128, 128, 128);
-            pdf.text(masterCard.watermark, x + cardWidth - 15, y + cardHeight - 2);
+            pdf.text(currentSide.watermark, x + cardWidth - 15, y + cardHeight - 2);
+        }
+    }
+
+    // Add new page for back side if it has content
+    const hasBackContent = masterCard.back && (
+        (masterCard.back.textboxes && masterCard.back.textboxes.length > 0) ||
+        (masterCard.back.imageboxes && masterCard.back.imageboxes.length > 0)
+    );
+
+    if (hasBackContent) {
+        pdf.addPage();
+        
+        // Create cards for back side (reversed order for double-sided printing)
+        for (let i = totalCards - 1; i >= 0; i--) {
+            const row = Math.floor((totalCards - 1 - i) / projectConfig.grid.width);
+            const col = (totalCards - 1 - i) % projectConfig.grid.width;
+            
+            const x = margin + (col * cardWidth);
+            const y = margin + (row * cardHeight);
+
+            // Get current side data
+            const currentSide = masterCard.back;
+
+            // Draw card background
+            pdf.setFillColor(currentSide.backgroundColor);
+            pdf.rect(x, y, cardWidth, cardHeight, 'F');
+
+            // Draw border
+            pdf.setDrawColor(currentSide.borderColor);
+            pdf.setLineWidth(currentSide.borderWidth * 0.1);
+            pdf.rect(x, y, cardWidth, cardHeight);
+
+            // Add textboxes
+            if (currentSide.textboxes && i < cardContents.length) {
+                currentSide.textboxes.forEach((textbox, textboxIndex) => {
+                    const content = cardContents[i].back?.textboxes?.[textboxIndex] || textbox.text;
+                    
+                    // Scale textbox position and size
+                    const textX = x + (textbox.x * cardWidth / 200);
+                    const textY = y + (textbox.y * cardHeight / 280) + (textbox.fontSize * 0.1);
+                    
+                    pdf.setFontSize(textbox.fontSize * 0.3);
+                    pdf.setTextColor(textbox.fontColor);
+                    
+                    // Split text into lines that fit the textbox width
+                    const maxWidth = (textbox.width * cardWidth / 200);
+                    const lines = pdf.splitTextToSize(content, maxWidth);
+                    
+                    pdf.text(lines, textX, textY);
+                });
+            }
+
+            // Add images
+            if (currentSide.imageboxes && i < cardContents.length) {
+                currentSide.imageboxes.forEach((imagebox, imageboxIndex) => {
+                    const imageData = cardContents[i].back?.imageboxes?.[imageboxIndex];
+                    
+                    if (imageData && imageData.src) {
+                        const imgX = x + (imagebox.x * cardWidth / 200);
+                        const imgY = y + (imagebox.y * cardHeight / 280);
+                        const imgWidth = imagebox.width * cardWidth / 200;
+                        const imgHeight = imagebox.height * cardHeight / 280;
+                        
+                        try {
+                            pdf.addImage(imageData.src, 'JPEG', imgX, imgY, imgWidth, imgHeight);
+                        } catch (error) {
+                            console.warn('Error adding image to PDF:', error);
+                        }
+                    }
+                });
+            }
+
+            // Add watermark
+            if (currentSide.watermark) {
+                pdf.setFontSize(6);
+                pdf.setTextColor(128, 128, 128);
+                pdf.text(currentSide.watermark, x + cardWidth - 15, y + cardHeight - 2);
+            }
         }
     }
 

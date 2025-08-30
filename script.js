@@ -3,7 +3,8 @@ let currentTab = 'project';
 let projectConfig = {
     name: 'Meine Karten',
     grid: { width: 3, height: 3 },
-    cardCount: 9
+    maxCardCount: 9,  // Maximum cards based on grid (determines card size)
+    actualCardCount: 9  // Actual cards to create (can be less than max)
 };
 
 let masterCard = {
@@ -33,12 +34,101 @@ let cardContents = [];
 let textboxCounter = 0;
 let imageboxCounter = 0;
 
+// Global Color Picker Functions
+function initColorPickers() {
+    console.log('Initializing color pickers...'); // Debug log
+    
+    // Initialize color preset functionality
+    const presetContainers = document.querySelectorAll('.color-presets');
+    console.log('Found preset containers:', presetContainers.length); // Debug log
+    
+    presetContainers.forEach(presetContainer => {
+        const targetInput = presetContainer.getAttribute('data-target');
+        console.log('Setting up container for:', targetInput); // Debug log
+        
+        presetContainer.addEventListener('click', (e) => {
+            console.log('Color preset clicked:', e.target); // Debug log
+            
+            if (e.target.classList.contains('color-preset')) {
+                const color = e.target.getAttribute('data-color');
+                const input = document.getElementById(targetInput);
+                
+                console.log('Selected color:', color, 'for input:', targetInput); // Debug log
+                
+                if (input) {
+                    // Update input value
+                    input.value = color;
+                    
+                    // Update masterCard data
+                    masterCard[currentSide][targetInput] = color;
+                    
+                    // Update visual indicators
+                    updateColorDisplay(targetInput, color);
+                    updateActivePreset(presetContainer, e.target);
+                    updateCardPreview();
+                }
+            }
+        });
+    });
+    
+    // Initialize displays for current values
+    const backgroundColor = document.getElementById('backgroundColor');
+    const borderColor = document.getElementById('borderColor');
+    
+    if (backgroundColor && borderColor) {
+        updateColorDisplay('backgroundColor', backgroundColor.value);
+        updateColorDisplay('borderColor', borderColor.value);
+        updateActivePresetForColor('backgroundColor', backgroundColor.value);
+        updateActivePresetForColor('borderColor', borderColor.value);
+    }
+}
+
+function updateColorDisplay(inputId, color) {
+    const display = document.getElementById(inputId + 'Display');
+    if (display) {
+        display.style.backgroundColor = color;
+    }
+}
+
+function updateActivePreset(container, activeElement) {
+    container.querySelectorAll('.color-preset').forEach(preset => {
+        preset.classList.remove('active');
+    });
+    activeElement.classList.add('active');
+}
+
+function updateActivePresetForColor(inputId, color) {
+    const container = document.querySelector(`.color-presets[data-target="${inputId}"]`);
+    if (container) {
+        container.querySelectorAll('.color-preset').forEach(preset => {
+            preset.classList.remove('active');
+            if (preset.getAttribute('data-color') === color) {
+                preset.classList.add('active');
+            }
+        });
+    }
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
     initializeTabs();
     initializeProject();
     initializeDesign();
     updateGridPreview();
+    
+    // Initialize card count dropdown
+    updateActualCardCountOptions();
+    
+    // Stelle sicher, dass das Dropdown den korrekten initialen Wert zeigt
+    const actualCardCountSelect = document.getElementById('actualCardCount');
+    if (actualCardCountSelect) {
+        actualCardCountSelect.value = projectConfig.actualCardCount;
+    }
+    
+    // Initialize color pickers after all other initialization
+    setTimeout(() => {
+        initColorPickers();
+    }, 100);
 });
 
 // Tab Management
@@ -95,7 +185,12 @@ function switchTab(tabName) {
     currentTab = tabName;
 
     // Execute tab-specific initialization functions
-    if (tabName === 'content') {
+    if (tabName === 'design') {
+        // Initialize color pickers when switching to design tab
+        setTimeout(() => {
+            initColorPickers();
+        }, 50);
+    } else if (tabName === 'content') {
         // Only generate content inputs if they don't exist or if master card has changed
         const container = document.getElementById('contentInputs');
         const needsRegeneration = container.innerHTML === '' || 
@@ -126,10 +221,27 @@ function initializeProject() {
     const gridHeightSlider = document.getElementById('gridHeightSlider');
     const gridWidthValue = document.getElementById('gridWidthValue');
     const gridHeightValue = document.getElementById('gridHeightValue');
+    const actualCardCountSelect = document.getElementById('actualCardCount');
 
     // Project name
     projectNameInput.addEventListener('input', () => {
         projectConfig.name = projectNameInput.value || 'Meine Karten';
+    });
+
+    // Actual card count selection
+    actualCardCountSelect.addEventListener('change', () => {
+        projectConfig.actualCardCount = parseInt(actualCardCountSelect.value);
+        updateCardContentsForNewGrid();
+        
+        // If we're currently on the content or export tab, update those as well
+        const activeTab = document.querySelector('.tab-content.active');
+        if (activeTab) {
+            if (activeTab.id === 'content') {
+                generateContentInputs();
+            } else if (activeTab.id === 'export') {
+                generatePDFPreview();
+            }
+        }
     });
 
     // Grid presets
@@ -206,9 +318,165 @@ function updateGridFromInput(gridValue) {
     if (match) {
         projectConfig.grid.width = parseInt(match[1]);
         projectConfig.grid.height = parseInt(match[2]);
-        projectConfig.cardCount = projectConfig.grid.width * projectConfig.grid.height;
+        projectConfig.maxCardCount = projectConfig.grid.width * projectConfig.grid.height;
+        
+        // Update actual card count dropdown - behält aktuellen Wert bei
+        updateActualCardCountOptions();
+        
+        // Update card contents array to match new grid size
+        updateCardContentsForNewGrid();
+        
         updateGridPreview();
+        
+        // If we're currently on the content or export tab, update those as well
+        const activeTab = document.querySelector('.tab-content.active');
+        if (activeTab) {
+            if (activeTab.id === 'content') {
+                generateContentInputs();
+            } else if (activeTab.id === 'export') {
+                generatePDFPreview();
+            }
+        }
     }
+}
+
+function updateActualCardCountOptions() {
+    const select = document.getElementById('actualCardCount');
+    const currentValue = projectConfig.actualCardCount; // Aktuellen Wert speichern
+    select.innerHTML = '';
+    
+    // Add options from 1 to maxCardCount
+    for (let i = 1; i <= projectConfig.maxCardCount; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = i + ' Karten';
+        if (i === projectConfig.maxCardCount) {
+            option.textContent += ' (alle)';
+        }
+        // Setze den aktuellen Wert als selected, oder Maximum falls der aktuelle Wert zu groß ist
+        if (i === currentValue || (currentValue > projectConfig.maxCardCount && i === projectConfig.maxCardCount)) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    }
+    
+    // Stelle sicher, dass actualCardCount nicht größer als maxCardCount ist
+    if (projectConfig.actualCardCount > projectConfig.maxCardCount) {
+        projectConfig.actualCardCount = projectConfig.maxCardCount;
+    }
+    
+    // Aktualisiere das Dropdown-Element, um den korrekten Wert anzuzeigen
+    select.value = projectConfig.actualCardCount;
+}
+
+function updateCardContentsForNewGrid() {
+    const currentCardCount = cardContents.length;
+    const newCardCount = projectConfig.actualCardCount;
+    
+    if (newCardCount > currentCardCount) {
+        // Add new cards with master design structure
+        for (let i = currentCardCount; i < newCardCount; i++) {
+            const newCard = {
+                cardIndex: i,
+                front: {
+                    textboxes: masterCard.front.textboxes.map(() => ''),
+                    imageboxes: masterCard.front.imageboxes.map(() => null)
+                },
+                back: {
+                    textboxes: masterCard.back.textboxes.map(() => ''),
+                    imageboxes: masterCard.back.imageboxes.map(() => null)
+                }
+            };
+            cardContents.push(newCard);
+        }
+    } else if (newCardCount < currentCardCount) {
+        // Remove excess cards
+        cardContents = cardContents.slice(0, newCardCount);
+    }
+    
+    // Update existing cards to match current master design structure
+    cardContents.forEach((card, index) => {
+        // Ensure front side has correct structure
+        if (!card.front) card.front = { textboxes: [], imageboxes: [] };
+        
+        // Adjust textboxes array length
+        while (card.front.textboxes.length < masterCard.front.textboxes.length) {
+            card.front.textboxes.push('');
+        }
+        if (card.front.textboxes.length > masterCard.front.textboxes.length) {
+            card.front.textboxes = card.front.textboxes.slice(0, masterCard.front.textboxes.length);
+        }
+        
+        // Adjust imageboxes array length
+        while (card.front.imageboxes.length < masterCard.front.imageboxes.length) {
+            card.front.imageboxes.push(null);
+        }
+        if (card.front.imageboxes.length > masterCard.front.imageboxes.length) {
+            card.front.imageboxes = card.front.imageboxes.slice(0, masterCard.front.imageboxes.length);
+        }
+        
+        // Ensure back side has correct structure
+        if (!card.back) card.back = { textboxes: [], imageboxes: [] };
+        
+        // Adjust back textboxes array length
+        while (card.back.textboxes.length < masterCard.back.textboxes.length) {
+            card.back.textboxes.push('');
+        }
+        if (card.back.textboxes.length > masterCard.back.textboxes.length) {
+            card.back.textboxes = card.back.textboxes.slice(0, masterCard.back.textboxes.length);
+        }
+        
+        // Adjust back imageboxes array length
+        while (card.back.imageboxes.length < masterCard.back.imageboxes.length) {
+            card.back.imageboxes.push(null);
+        }
+        if (card.back.imageboxes.length > masterCard.back.imageboxes.length) {
+            card.back.imageboxes = card.back.imageboxes.slice(0, masterCard.back.imageboxes.length);
+        }
+    });
+}
+
+function updateCardContentsStructure() {
+    // Update existing cards to match current master design structure
+    cardContents.forEach((card, index) => {
+        // Ensure front side has correct structure
+        if (!card.front) card.front = { textboxes: [], imageboxes: [] };
+        
+        // Adjust textboxes array length
+        while (card.front.textboxes.length < masterCard.front.textboxes.length) {
+            card.front.textboxes.push('');
+        }
+        if (card.front.textboxes.length > masterCard.front.textboxes.length) {
+            card.front.textboxes = card.front.textboxes.slice(0, masterCard.front.textboxes.length);
+        }
+        
+        // Adjust imageboxes array length
+        while (card.front.imageboxes.length < masterCard.front.imageboxes.length) {
+            card.front.imageboxes.push(null);
+        }
+        if (card.front.imageboxes.length > masterCard.front.imageboxes.length) {
+            card.front.imageboxes = card.front.imageboxes.slice(0, masterCard.front.imageboxes.length);
+        }
+        
+        // Ensure back side has correct structure
+        if (!card.back) card.back = { textboxes: [], imageboxes: [] };
+        
+        // Adjust back textboxes array length
+        while (card.back.textboxes.length < masterCard.back.textboxes.length) {
+            card.back.textboxes.push('');
+        }
+        if (card.back.textboxes.length > masterCard.back.textboxes.length) {
+            card.back.textboxes = card.back.textboxes.slice(0, masterCard.back.textboxes.length);
+        }
+        
+        // Adjust back imageboxes array length
+        while (card.back.imageboxes.length < masterCard.back.imageboxes.length) {
+            card.back.imageboxes.push(null);
+        }
+        if (card.back.imageboxes.length > masterCard.back.imageboxes.length) {
+            card.back.imageboxes = card.back.imageboxes.slice(0, masterCard.back.imageboxes.length);
+        }
+    });
 }
 
 function updateGridPreview() {
@@ -219,7 +487,8 @@ function updateGridPreview() {
     preview.style.gridTemplateRows = `repeat(${height}, 1fr)`;
     
     preview.innerHTML = '';
-    for (let i = 0; i < projectConfig.cardCount; i++) {
+    // Always show the full grid (maxCardCount) to visualize card size
+    for (let i = 0; i < projectConfig.maxCardCount; i++) {
         const cell = document.createElement('div');
         cell.className = 'grid-cell';
         cell.textContent = `Karte ${i + 1}`;
@@ -229,6 +498,13 @@ function updateGridPreview() {
 
 function saveProjectConfig() {
     projectConfig.name = document.getElementById('projectName').value || 'Meine Karten';
+    
+    // Speichere den aktuellen actualCardCount Wert aus dem Dropdown
+    const actualCardCountSelect = document.getElementById('actualCardCount');
+    if (actualCardCountSelect.value) {
+        projectConfig.actualCardCount = parseInt(actualCardCountSelect.value);
+    }
+    
     updateGridFromInput(document.getElementById('gridInput').value);
 }
 
@@ -255,6 +531,8 @@ function initializeDesign() {
     backgroundColor.addEventListener('change', () => {
         masterCard[currentSide].backgroundColor = backgroundColor.value;
         updateCardPreview();
+        updateColorDisplay('backgroundColor', backgroundColor.value);
+        updateActivePresetForColor('backgroundColor', backgroundColor.value);
     });
 
     // Border width
@@ -268,6 +546,8 @@ function initializeDesign() {
     borderColor.addEventListener('change', () => {
         masterCard[currentSide].borderColor = borderColor.value;
         updateCardPreview();
+        updateColorDisplay('borderColor', borderColor.value);
+        updateActivePresetForColor('borderColor', borderColor.value);
     });
 
     // Watermark
@@ -322,6 +602,12 @@ function updateFormControls() {
     document.getElementById('borderColor').value = currentCardSide.borderColor;
     document.getElementById('watermarkText').value = currentCardSide.watermark;
     
+    // Update color displays and presets
+    updateColorDisplay('backgroundColor', currentCardSide.backgroundColor);
+    updateColorDisplay('borderColor', currentCardSide.borderColor);
+    updateActivePresetForColor('backgroundColor', currentCardSide.backgroundColor);
+    updateActivePresetForColor('borderColor', currentCardSide.borderColor);
+    
     // Reset background image input (file inputs can't be set programmatically)
     document.getElementById('backgroundImage').value = '';
 }
@@ -339,6 +625,10 @@ function addTextbox() {
     };
 
     masterCard[currentSide].textboxes.push(textbox);
+    
+    // Update all existing cards to match new master structure
+    updateCardContentsStructure();
+    
     updateElementLists();
     updateCardPreview();
 }
@@ -355,6 +645,10 @@ function addImagebox() {
     };
 
     masterCard[currentSide].imageboxes.push(imagebox);
+    
+    // Update all existing cards to match new master structure
+    updateCardContentsStructure();
+    
     updateElementLists();
     updateCardPreview();
 }
@@ -401,6 +695,10 @@ function updateTextboxColor(index, color) {
 
 function removeTextbox(index) {
     masterCard[currentSide].textboxes.splice(index, 1);
+    
+    // Update all existing cards to match new master structure
+    updateCardContentsStructure();
+    
     updateElementLists();
     updateCardPreview();
 }
@@ -445,6 +743,10 @@ function updateImageboxImage(index, input) {
 
 function removeImagebox(index) {
     masterCard[currentSide].imageboxes.splice(index, 1);
+    
+    // Update all existing cards to match new master structure
+    updateCardContentsStructure();
+    
     updateElementLists();
     updateCardPreview();
 }
@@ -606,11 +908,16 @@ function generateContentInputs() {
     
     container.innerHTML = '';
 
-    // Initialize card contents array if empty
+    // Ensure card contents array is properly sized and structured
+    // This is now handled by updateCardContentsForNewGrid() when grid changes
     if (cardContents.length === 0) {
-        for (let i = 0; i < projectConfig.cardCount; i++) {
-            const cardContent = {
-                cardIndex: i,
+        // Only initialize if completely empty (first time)
+        updateCardContentsForNewGrid();
+    } else {
+        // Ensure we have enough cards for current actual count
+        while (cardContents.length < projectConfig.actualCardCount) {
+            const newCard = {
+                cardIndex: cardContents.length,
                 front: {
                     textboxes: masterCard.front.textboxes.map(() => ''),
                     imageboxes: masterCard.front.imageboxes.map(() => null)
@@ -620,11 +927,11 @@ function generateContentInputs() {
                     imageboxes: masterCard.back.imageboxes.map(() => null)
                 }
             };
-            cardContents.push(cardContent);
+            cardContents.push(newCard);
         }
     }
     
-    for (let i = 0; i < projectConfig.cardCount; i++) {
+    for (let i = 0; i < projectConfig.actualCardCount; i++) {
         const cardInput = document.createElement('div');
         cardInput.className = 'card-input';
         
@@ -769,10 +1076,15 @@ function generatePDFPreview() {
     const preview = document.getElementById('pdfPreview');
     preview.innerHTML = '<h3>PDF Vorschau:</h3>';
 
-    // Check if we have back side content
+    // Check if we have back side content or design differences
     const hasBackContent = masterCard.back && (
         (masterCard.back.textboxes && masterCard.back.textboxes.length > 0) ||
-        (masterCard.back.imageboxes && masterCard.back.imageboxes.length > 0)
+        (masterCard.back.imageboxes && masterCard.back.imageboxes.length > 0) ||
+        (masterCard.back.backgroundColor !== masterCard.front.backgroundColor) ||
+        (masterCard.back.borderWidth !== masterCard.front.borderWidth) ||
+        (masterCard.back.borderColor !== masterCard.front.borderColor) ||
+        (masterCard.back.watermark !== masterCard.front.watermark) ||
+        (masterCard.back.backgroundImage !== masterCard.front.backgroundImage)
     );
 
     // Create container for front page
@@ -793,9 +1105,10 @@ function generatePDFPreview() {
     frontPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
 
     // Ensure we have the right number of cards
-    const totalCards = projectConfig.cardCount;
+    const totalCards = projectConfig.maxCardCount;  // Show full grid
+    const actualCards = projectConfig.actualCardCount;  // Only fill up to actual count
     for (let i = 0; i < totalCards; i++) {
-        if (i < cardContents.length) {
+        if (i < actualCards && i < cardContents.length) {
             const frontCard = createPDFCard(cardContents[i], i, 'front');
             frontPage.appendChild(frontCard);
         } else {
@@ -804,6 +1117,16 @@ function generatePDFPreview() {
             emptyCard.className = 'pdf-card';
             emptyCard.style.backgroundColor = '#f5f5f5';
             emptyCard.style.border = '1px dashed #ccc';
+            emptyCard.style.display = 'flex';
+            emptyCard.style.alignItems = 'center';
+            emptyCard.style.justifyContent = 'center';
+            emptyCard.style.color = '#999';
+            emptyCard.style.fontSize = '10px';
+            if (i >= actualCards) {
+                emptyCard.textContent = '(nicht verwendet)';
+            } else {
+                emptyCard.textContent = '(leer)';
+            }
             frontPage.appendChild(emptyCard);
         }
     }
@@ -830,7 +1153,7 @@ function generatePDFPreview() {
 
         // Reverse order for back sides to match front when printed double-sided
         for (let i = totalCards - 1; i >= 0; i--) {
-            if (i < cardContents.length) {
+            if (i < actualCards && i < cardContents.length) {
                 const backCard = createPDFCard(cardContents[i], i, 'back');
                 backCard.style.transform = 'scaleX(-1)'; // Mirror for proper alignment
                 backPage.appendChild(backCard);
@@ -841,6 +1164,16 @@ function generatePDFPreview() {
                 emptyCard.style.backgroundColor = '#f5f5f5';
                 emptyCard.style.border = '1px dashed #ccc';
                 emptyCard.style.transform = 'scaleX(-1)';
+                emptyCard.style.display = 'flex';
+                emptyCard.style.alignItems = 'center';
+                emptyCard.style.justifyContent = 'center';
+                emptyCard.style.color = '#999';
+                emptyCard.style.fontSize = '10px';
+                if (i >= actualCards) {
+                    emptyCard.textContent = '(nicht verwendet)';
+                } else {
+                    emptyCard.textContent = '(leer)';
+                }
                 backPage.appendChild(emptyCard);
             }
         }
@@ -947,8 +1280,8 @@ async function generatePDF() {
     const cardWidth = availableWidth / projectConfig.grid.width;
     const cardHeight = availableHeight / projectConfig.grid.height;
 
-    // Create cards for front side
-    const totalCards = projectConfig.cardCount;
+    // Create cards for front side - only export actual cards, not the full grid
+    const totalCards = projectConfig.actualCardCount;
     for (let i = 0; i < totalCards; i++) {
         const row = Math.floor(i / projectConfig.grid.width);
         const col = i % projectConfig.grid.width;
@@ -1016,10 +1349,15 @@ async function generatePDF() {
         }
     }
 
-    // Add new page for back side if it has content
+    // Add new page for back side if it has content or design differences
     const hasBackContent = masterCard.back && (
         (masterCard.back.textboxes && masterCard.back.textboxes.length > 0) ||
-        (masterCard.back.imageboxes && masterCard.back.imageboxes.length > 0)
+        (masterCard.back.imageboxes && masterCard.back.imageboxes.length > 0) ||
+        (masterCard.back.backgroundColor !== masterCard.front.backgroundColor) ||
+        (masterCard.back.borderWidth !== masterCard.front.borderWidth) ||
+        (masterCard.back.borderColor !== masterCard.front.borderColor) ||
+        (masterCard.back.watermark !== masterCard.front.watermark) ||
+        (masterCard.back.backgroundImage !== masterCard.front.backgroundImage)
     );
 
     if (hasBackContent) {

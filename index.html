@@ -99,6 +99,15 @@
                 <div id="gridPreview" class="grid-preview-container"></div>
             </div>
 
+            <!-- Card Count Selection -->
+            <div class="form-group">
+                <label for="actualCardCount">Tatsächliche Kartenanzahl:</label>
+                <select id="actualCardCount">
+                    <!-- Options will be populated dynamically based on grid -->
+                </select>
+                <small class="form-help">Wählen Sie weniger Karten, wenn Sie nicht das ganze Grid benötigen. Die Kartengröße bleibt gleich.</small>
+            </div>
+
             <button id="nextToDesign" class="btn btn-primary">Weiter zum Master Design</button>
         </div>
 
@@ -116,7 +125,29 @@
                 <div class="design-controls">
                     <div class="form-group">
                         <label for="backgroundColor">Hintergrundfarbe:</label>
-                        <input type="color" id="backgroundColor" value="#ffffff">
+                        <div class="color-picker-group">
+                            <div class="color-presets" data-target="backgroundColor">
+                                <div class="color-preset" data-color="#ffffff" style="background-color: #ffffff;" title="Weiß"></div>
+                                <div class="color-preset" data-color="#f8f9fa" style="background-color: #f8f9fa;" title="Hellgrau"></div>
+                                <div class="color-preset" data-color="#e9ecef" style="background-color: #e9ecef;" title="Grau"></div>
+                                <div class="color-preset" data-color="#dee2e6" style="background-color: #dee2e6;" title="Dunkelgrau"></div>
+                                <div class="color-preset" data-color="#ffeaa7" style="background-color: #ffeaa7;" title="Gelb"></div>
+                                <div class="color-preset" data-color="#fab1a0" style="background-color: #fab1a0;" title="Orange"></div>
+                                <div class="color-preset" data-color="#ff7675" style="background-color: #ff7675;" title="Rot"></div>
+                                <div class="color-preset" data-color="#fd79a8" style="background-color: #fd79a8;" title="Pink"></div>
+                                <div class="color-preset" data-color="#fdcb6e" style="background-color: #fdcb6e;" title="Gold"></div>
+                                <div class="color-preset" data-color="#6c5ce7" style="background-color: #6c5ce7;" title="Lila"></div>
+                                <div class="color-preset" data-color="#74b9ff" style="background-color: #74b9ff;" title="Blau"></div>
+                                <div class="color-preset" data-color="#00b894" style="background-color: #00b894;" title="Grün"></div>
+                            </div>
+                            <div class="color-custom-row">
+                                <div class="color-current-display" id="backgroundColorDisplay"></div>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="backgroundColor" class="color-input-real" value="#ffffff">
+                                    <button type="button" class="color-custom-btn">Eigene Farbe wählen</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -127,7 +158,29 @@
 
                     <div class="form-group">
                         <label for="borderColor">Rahmenfarbe:</label>
-                        <input type="color" id="borderColor" value="#000000">
+                        <div class="color-picker-group">
+                            <div class="color-presets" data-target="borderColor">
+                                <div class="color-preset" data-color="#000000" style="background-color: #000000;" title="Schwarz"></div>
+                                <div class="color-preset" data-color="#343a40" style="background-color: #343a40;" title="Dunkelgrau"></div>
+                                <div class="color-preset" data-color="#6c757d" style="background-color: #6c757d;" title="Grau"></div>
+                                <div class="color-preset" data-color="#adb5bd" style="background-color: #adb5bd;" title="Hellgrau"></div>
+                                <div class="color-preset" data-color="#dc3545" style="background-color: #dc3545;" title="Rot"></div>
+                                <div class="color-preset" data-color="#fd7e14" style="background-color: #fd7e14;" title="Orange"></div>
+                                <div class="color-preset" data-color="#ffc107" style="background-color: #ffc107;" title="Gelb"></div>
+                                <div class="color-preset" data-color="#28a745" style="background-color: #28a745;" title="Grün"></div>
+                                <div class="color-preset" data-color="#007bff" style="background-color: #007bff;" title="Blau"></div>
+                                <div class="color-preset" data-color="#6f42c1" style="background-color: #6f42c1;" title="Lila"></div>
+                                <div class="color-preset" data-color="#e83e8c" style="background-color: #e83e8c;" title="Pink"></div>
+                                <div class="color-preset" data-color="#17a2b8" style="background-color: #17a2b8;" title="Türkis"></div>
+                            </div>
+                            <div class="color-custom-row">
+                                <div class="color-current-display" id="borderColorDisplay"></div>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="borderColor" class="color-input-real" value="#000000">
+                                    <button type="button" class="color-custom-btn">Eigene Farbe wählen</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-group">

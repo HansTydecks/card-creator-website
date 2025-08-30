@@ -329,6 +329,11 @@ function updateGridFromInput(gridValue) {
         
         updateGridPreview();
         
+        // Update card preview in design tab if it exists
+        if (document.getElementById('masterCard')) {
+            updateCardPreview();
+        }
+        
         // If we're currently on the content or export tab, update those as well
         const activeTab = document.querySelector('.tab-content.active');
         if (activeTab) {
@@ -520,15 +525,21 @@ function updateCardPreviewDimensions() {
     // Calculate aspect ratio
     const aspectRatio = cardWidth / cardHeight;
     
-    // Set preview dimensions - base height of 280px, width calculated from aspect ratio
-    const previewHeight = 280;
+    // Use a larger base size for better usability
+    // Minimum height of 350px for small grids, scale up for larger grids
+    const baseHeight = Math.max(350, 280 + (Math.max(width, height) - 3) * 30);
+    const previewHeight = baseHeight;
     const previewWidth = previewHeight * aspectRatio;
     
-    // Apply dimensions
-    cardTemplate.style.width = `${previewWidth}px`;
-    cardTemplate.style.height = `${previewHeight}px`;
+    // Ensure minimum width of 250px for usability
+    const finalWidth = Math.max(250, previewWidth);
+    const finalHeight = aspectRatio < 1 ? finalWidth / aspectRatio : previewHeight;
     
-    console.log(`Grid: ${width}x${height}, Card dimensions: ${cardWidth.toFixed(1)}mm x ${cardHeight.toFixed(1)}mm, Preview: ${previewWidth.toFixed(0)}px x ${previewHeight}px`);
+    // Apply dimensions
+    cardTemplate.style.width = `${finalWidth}px`;
+    cardTemplate.style.height = `${finalHeight}px`;
+    
+    console.log(`Grid: ${width}x${height}, Card dimensions: ${cardWidth.toFixed(1)}mm x ${cardHeight.toFixed(1)}mm, Preview: ${finalWidth.toFixed(0)}px x ${finalHeight.toFixed(0)}px`);
 }
 
 function saveProjectConfig() {
@@ -610,6 +621,34 @@ function initializeDesign() {
     // Add imagebox
     addImageboxBtn.addEventListener('click', addImagebox);
 
+    // Image controls event listeners
+    document.getElementById('imageWidth').addEventListener('input', (e) => {
+        updateImageProperty('width', e.target.value);
+    });
+    
+    document.getElementById('imageHeight').addEventListener('input', (e) => {
+        updateImageProperty('height', e.target.value);
+    });
+    
+    document.getElementById('imageBorderWidth').addEventListener('input', (e) => {
+        updateImageProperty('borderWidth', e.target.value);
+        document.getElementById('imageBorderWidthValue').textContent = e.target.value + 'px';
+    });
+    
+    document.getElementById('imageBorderColor').addEventListener('change', (e) => {
+        updateImageProperty('borderColor', e.target.value);
+        updateColorDisplay('imageBorderColor', e.target.value);
+        updateActivePresetForColor('imageBorderColor', e.target.value);
+    });
+    
+    document.getElementById('imageOpacity').addEventListener('input', (e) => {
+        updateImageProperty('opacity', e.target.value);
+        document.getElementById('imageOpacityValue').textContent = e.target.value + '%';
+    });
+    
+    document.getElementById('lockAspectRatio').addEventListener('click', toggleAspectRatioLock);
+    document.getElementById('deleteSelectedImage').addEventListener('click', deleteSelectedImage);
+
     // Initialize card preview
     updateCardPreview();
 }
@@ -648,15 +687,32 @@ function updateFormControls() {
 }
 
 function addTextbox() {
+    // Get current card dimensions for proportional sizing
+    const cardTemplate = document.getElementById('masterCard');
+    const cardWidth = cardTemplate ? parseInt(cardTemplate.style.width) || 200 : 200;
+    const cardHeight = cardTemplate ? parseInt(cardTemplate.style.height) || 280 : 280;
+    
+    // Scale default values based on card size (reference: 200x280)
+    const widthScale = cardWidth / 200;
+    const heightScale = cardHeight / 280;
+    const avgScale = (widthScale + heightScale) / 2;
+    
     const textbox = {
         id: ++textboxCounter,
         text: 'Textbox ' + textboxCounter,
-        x: 10,
-        y: 10,
-        width: 80,
-        height: 30,
-        fontSize: 12,
-        fontColor: '#000000'
+        x: Math.round(10 * widthScale),
+        y: Math.round(10 * heightScale),
+        width: Math.round(80 * widthScale),
+        height: Math.round(30 * heightScale),
+        fontSize: Math.round(12 * avgScale),
+        fontColor: '#000000',
+        fontFamily: 'Arial',
+        bold: false,
+        italic: false,
+        underline: false,
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
+        borderWidth: 0
     };
 
     masterCard[currentSide].textboxes.push(textbox);
@@ -669,14 +725,27 @@ function addTextbox() {
 }
 
 function addImagebox() {
+    // Get current card dimensions for proportional sizing
+    const cardTemplate = document.getElementById('masterCard');
+    const cardWidth = cardTemplate ? parseInt(cardTemplate.style.width) || 200 : 200;
+    const cardHeight = cardTemplate ? parseInt(cardTemplate.style.height) || 280 : 280;
+    
+    // Scale default values based on card size (reference: 200x280)
+    const widthScale = cardWidth / 200;
+    const heightScale = cardHeight / 280;
+    
     const imagebox = {
         id: ++imageboxCounter,
         name: 'Bild ' + imageboxCounter,
-        x: 10,
-        y: 50,
-        width: 60,
-        height: 60,
-        image: null
+        x: Math.round(10 * widthScale),
+        y: Math.round(50 * heightScale),
+        width: Math.round(100 * widthScale),
+        height: Math.round(100 * heightScale),
+        image: null,
+        borderWidth: 0,
+        borderColor: '#000000',
+        opacity: 100,
+        originalAspectRatio: 1
     };
 
     masterCard[currentSide].imageboxes.push(imagebox);
@@ -703,10 +772,51 @@ function updateTextboxList() {
         item.innerHTML = `
             <label>Textbox ${textbox.id}:</label>
             <input type="text" value="${textbox.text}" onchange="updateTextboxText(${index}, this.value)">
-            <div style="display: flex; gap: 10px; margin-top: 5px;">
-                <input type="number" placeholder="Schriftgröße" value="${textbox.fontSize}" onchange="updateTextboxFontSize(${index}, this.value)" style="width: 80px;">
-                <input type="color" value="${textbox.fontColor}" onchange="updateTextboxColor(${index}, this.value)" style="width: 50px;">
-                <button class="btn btn-danger" onclick="removeTextbox(${index})">Löschen</button>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                <!-- Erste Zeile: Schriftgröße und Schriftfarbe -->
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <label style="font-size: 12px;">Größe:</label>
+                    <input type="number" value="${textbox.fontSize}" onchange="updateTextboxFontSize(${index}, this.value)" style="width: 60px;">
+                </div>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <label style="font-size: 12px;">Farbe:</label>
+                    <input type="color" value="${textbox.fontColor}" onchange="updateTextboxColor(${index}, this.value)" style="width: 40px;">
+                </div>
+                
+                <!-- Zweite Zeile: Schriftart und Stil-Buttons -->
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <label style="font-size: 12px;">Font:</label>
+                    <select onchange="updateTextboxFontFamily(${index}, this.value)" style="width: 80px; font-size: 11px;">
+                        <option value="Arial" ${textbox.fontFamily === 'Arial' ? 'selected' : ''}>Arial</option>
+                        <option value="Times New Roman" ${textbox.fontFamily === 'Times New Roman' ? 'selected' : ''}>Times</option>
+                        <option value="Helvetica" ${textbox.fontFamily === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
+                        <option value="Georgia" ${textbox.fontFamily === 'Georgia' ? 'selected' : ''}>Georgia</option>
+                        <option value="Verdana" ${textbox.fontFamily === 'Verdana' ? 'selected' : ''}>Verdana</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 3px;">
+                    <button onclick="toggleTextboxBold(${index})" style="padding: 2px 6px; font-size: 11px; background: ${textbox.bold ? '#0d7377' : '#444'}; color: white; border: none; border-radius: 3px;"><b>B</b></button>
+                    <button onclick="toggleTextboxItalic(${index})" style="padding: 2px 6px; font-size: 11px; background: ${textbox.italic ? '#0d7377' : '#444'}; color: white; border: none; border-radius: 3px;"><i>I</i></button>
+                    <button onclick="toggleTextboxUnderline(${index})" style="padding: 2px 6px; font-size: 11px; background: ${textbox.underline ? '#0d7377' : '#444'}; color: white; border: none; border-radius: 3px;"><u>U</u></button>
+                </div>
+                
+                <!-- Dritte Zeile: Hintergrund und Rahmen -->
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <label style="font-size: 12px;">Hintergr.:</label>
+                    <input type="color" value="${textbox.backgroundColor === 'transparent' ? '#ffffff' : textbox.backgroundColor}" onchange="updateTextboxBackgroundColor(${index}, this.value)" style="width: 40px;">
+                    <button onclick="clearTextboxBackground(${index})" style="padding: 2px 4px; font-size: 10px; background: #666; color: white; border: none; border-radius: 2px;">✕</button>
+                </div>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <label style="font-size: 12px;">Rahmen:</label>
+                    <input type="color" value="${textbox.borderColor === 'transparent' ? '#000000' : textbox.borderColor}" onchange="updateTextboxBorderColor(${index}, this.value)" style="width: 30px;">
+                    <input type="number" value="${textbox.borderWidth}" onchange="updateTextboxBorderWidth(${index}, this.value)" style="width: 35px;" min="0" max="5">
+                    <button onclick="clearTextboxBorder(${index})" style="padding: 2px 4px; font-size: 10px; background: #666; color: white; border: none; border-radius: 2px;">✕</button>
+                </div>
+            </div>
+            
+            <div style="margin-top: 10px;">
+                <button class="btn btn-danger" onclick="removeTextbox(${index})" style="font-size: 12px; padding: 4px 8px;">Löschen</button>
             </div>
         `;
         list.appendChild(item);
@@ -725,6 +835,57 @@ function updateTextboxFontSize(index, fontSize) {
 
 function updateTextboxColor(index, color) {
     masterCard[currentSide].textboxes[index].fontColor = color;
+    updateCardPreview();
+}
+
+function updateTextboxFontFamily(index, fontFamily) {
+    masterCard[currentSide].textboxes[index].fontFamily = fontFamily;
+    updateCardPreview();
+}
+
+function toggleTextboxBold(index) {
+    masterCard[currentSide].textboxes[index].bold = !masterCard[currentSide].textboxes[index].bold;
+    updateElementLists();
+    updateCardPreview();
+}
+
+function toggleTextboxItalic(index) {
+    masterCard[currentSide].textboxes[index].italic = !masterCard[currentSide].textboxes[index].italic;
+    updateElementLists();
+    updateCardPreview();
+}
+
+function toggleTextboxUnderline(index) {
+    masterCard[currentSide].textboxes[index].underline = !masterCard[currentSide].textboxes[index].underline;
+    updateElementLists();
+    updateCardPreview();
+}
+
+function updateTextboxBackgroundColor(index, color) {
+    masterCard[currentSide].textboxes[index].backgroundColor = color;
+    updateCardPreview();
+}
+
+function clearTextboxBackground(index) {
+    masterCard[currentSide].textboxes[index].backgroundColor = 'transparent';
+    updateElementLists();
+    updateCardPreview();
+}
+
+function updateTextboxBorderColor(index, color) {
+    masterCard[currentSide].textboxes[index].borderColor = color;
+    updateCardPreview();
+}
+
+function updateTextboxBorderWidth(index, width) {
+    masterCard[currentSide].textboxes[index].borderWidth = parseInt(width) || 0;
+    updateCardPreview();
+}
+
+function clearTextboxBorder(index) {
+    masterCard[currentSide].textboxes[index].borderColor = 'transparent';
+    masterCard[currentSide].textboxes[index].borderWidth = 0;
+    updateElementLists();
     updateCardPreview();
 }
 
@@ -752,6 +913,11 @@ function updateImageboxList() {
                 <input type="file" accept="image/*" onchange="updateImageboxImage(${index}, this)" style="flex: 1;">
                 <button class="btn btn-danger" onclick="removeImagebox(${index})">Löschen</button>
             </div>
+            <div style="margin-top: 10px;">
+                <button class="btn btn-secondary" onclick="selectImageForEditing(${index})" style="font-size: 12px; padding: 5px 10px;">
+                    Bild-Eigenschaften bearbeiten
+                </button>
+            </div>
             ${imagebox.image ? '<div style="margin-top: 5px; font-size: 12px; color: #0d7377;">✓ Bild hochgeladen</div>' : ''}
         `;
         list.appendChild(item);
@@ -768,9 +934,21 @@ function updateImageboxImage(index, input) {
     if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            masterCard[currentSide].imageboxes[index].image = e.target.result;
-            updateElementLists();
-            updateCardPreview();
+            // Create a temporary image to get dimensions
+            const img = new Image();
+            img.onload = function() {
+                const aspectRatio = this.width / this.height;
+                masterCard[currentSide].imageboxes[index].image = e.target.result;
+                masterCard[currentSide].imageboxes[index].originalAspectRatio = aspectRatio;
+                
+                // Adjust height to maintain aspect ratio if needed
+                const imagebox = masterCard[currentSide].imageboxes[index];
+                imagebox.height = Math.round(imagebox.width / aspectRatio);
+                
+                updateElementLists();
+                updateCardPreview();
+            };
+            img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
@@ -782,8 +960,78 @@ function removeImagebox(index) {
     // Update all existing cards to match new master structure
     updateCardContentsStructure();
     
+    // Hide image controls panel if it was visible
+    document.getElementById('imageControlsPanel').style.display = 'none';
+    selectedImageIndex = -1;
+    
     updateElementLists();
     updateCardPreview();
+}
+
+// Variable to track selected image
+let selectedImageIndex = -1;
+let aspectRatioLocked = false;
+
+function selectImageForEditing(index) {
+    selectedImageIndex = index;
+    const imagebox = masterCard[currentSide].imageboxes[index];
+    
+    // Show image controls panel
+    const panel = document.getElementById('imageControlsPanel');
+    panel.style.display = 'block';
+    
+    // Populate controls with current values
+    document.getElementById('imageWidth').value = imagebox.width;
+    document.getElementById('imageHeight').value = imagebox.height;
+    document.getElementById('imageBorderWidth').value = imagebox.borderWidth;
+    document.getElementById('imageBorderWidthValue').textContent = imagebox.borderWidth + 'px';
+    document.getElementById('imageBorderColor').value = imagebox.borderColor;
+    document.getElementById('imageOpacity').value = imagebox.opacity;
+    document.getElementById('imageOpacityValue').textContent = imagebox.opacity + '%';
+    
+    // Update color display and presets
+    updateColorDisplay('imageBorderColor', imagebox.borderColor);
+    updateActivePresetForColor('imageBorderColor', imagebox.borderColor);
+    
+    // Highlight selected image in preview
+    updateCardPreview();
+}
+
+function updateImageProperty(property, value) {
+    if (selectedImageIndex >= 0) {
+        const imagebox = masterCard[currentSide].imageboxes[selectedImageIndex];
+        
+        if (property === 'width') {
+            imagebox.width = parseInt(value);
+            if (aspectRatioLocked && imagebox.originalAspectRatio) {
+                imagebox.height = Math.round(imagebox.width / imagebox.originalAspectRatio);
+                document.getElementById('imageHeight').value = imagebox.height;
+            }
+        } else if (property === 'height') {
+            imagebox.height = parseInt(value);
+            if (aspectRatioLocked && imagebox.originalAspectRatio) {
+                imagebox.width = Math.round(imagebox.height * imagebox.originalAspectRatio);
+                document.getElementById('imageWidth').value = imagebox.width;
+            }
+        } else {
+            imagebox[property] = value;
+        }
+        
+        updateCardPreview();
+    }
+}
+
+function toggleAspectRatioLock() {
+    aspectRatioLocked = !aspectRatioLocked;
+    const button = document.getElementById('lockAspectRatio');
+    button.textContent = aspectRatioLocked ? '🔒' : '🔓';
+    button.title = aspectRatioLocked ? 'Seitenverhältnis freigeben' : 'Seitenverhältnis beibehalten';
+}
+
+function deleteSelectedImage() {
+    if (selectedImageIndex >= 0) {
+        removeImagebox(selectedImageIndex);
+    }
 }
 
 function updateCardPreview() {
@@ -818,10 +1066,38 @@ function updateCardPreview() {
         textboxElement.textContent = textbox.text;
         textboxElement.style.left = textbox.x + 'px';
         textboxElement.style.top = textbox.y + 'px';
-        textboxElement.style.width = textbox.width + 'px';
-        textboxElement.style.height = textbox.height + 'px';
+        
+        // Set minimum dimensions but allow auto-sizing for content
+        textboxElement.style.minWidth = Math.max(textbox.width, 40) + 'px';
+        textboxElement.style.minHeight = Math.max(textbox.height, 20) + 'px';
+        
+        // Let the content determine the actual size
+        textboxElement.style.width = 'auto';
+        textboxElement.style.height = 'auto';
+        textboxElement.style.maxWidth = '300px'; // Prevent excessive width
+        
         textboxElement.style.fontSize = textbox.fontSize + 'px';
         textboxElement.style.color = textbox.fontColor;
+        
+        // Apply new style properties
+        textboxElement.style.fontFamily = textbox.fontFamily || 'Arial';
+        textboxElement.style.fontWeight = textbox.bold ? 'bold' : 'normal';
+        textboxElement.style.fontStyle = textbox.italic ? 'italic' : 'normal';
+        textboxElement.style.textDecoration = textbox.underline ? 'underline' : 'none';
+        
+        // Apply background color
+        if (textbox.backgroundColor && textbox.backgroundColor !== 'transparent') {
+            textboxElement.style.backgroundColor = textbox.backgroundColor;
+        } else {
+            textboxElement.style.backgroundColor = 'rgba(30, 30, 30, 0.9)';
+        }
+        
+        // Apply border
+        if (textbox.borderColor && textbox.borderColor !== 'transparent' && textbox.borderWidth > 0) {
+            textboxElement.style.border = `${textbox.borderWidth}px solid ${textbox.borderColor}`;
+        } else {
+            textboxElement.style.border = '1px dashed #0d7377';
+        }
         
         // Make draggable
         makeDraggable(textboxElement, 'textbox', index);
@@ -832,23 +1108,54 @@ function updateCardPreview() {
     // Add imageboxes
     currentCardSide.imageboxes.forEach((imagebox, index) => {
         const imageboxElement = document.createElement('div');
-        imageboxElement.className = 'card-imagebox';
+        imageboxElement.className = 'card-image';
         imageboxElement.style.left = imagebox.x + 'px';
         imageboxElement.style.top = imagebox.y + 'px';
         imageboxElement.style.width = imagebox.width + 'px';
         imageboxElement.style.height = imagebox.height + 'px';
         
+        // Apply border styles
+        if (imagebox.borderWidth > 0) {
+            imageboxElement.style.border = `${imagebox.borderWidth}px solid ${imagebox.borderColor}`;
+            imageboxElement.style.boxSizing = 'border-box';
+        } else {
+            imageboxElement.style.border = '2px dashed #0d7377';
+            imageboxElement.style.boxSizing = 'border-box';
+        }
+        
+        // Apply opacity
+        imageboxElement.style.opacity = imagebox.opacity / 100;
+        
+        // Highlight if selected
+        if (index === selectedImageIndex) {
+            imageboxElement.classList.add('selected');
+        }
+        
         if (imagebox.image) {
             const img = document.createElement('img');
             img.src = imagebox.image;
             img.alt = imagebox.name;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            img.style.display = 'block';
             imageboxElement.appendChild(img);
         } else {
             imageboxElement.textContent = imagebox.name;
+            imageboxElement.style.display = 'flex';
+            imageboxElement.style.alignItems = 'center';
+            imageboxElement.style.justifyContent = 'center';
+            imageboxElement.style.fontSize = '12px';
+            imageboxElement.style.color = '#0d7377';
+            imageboxElement.style.backgroundColor = 'rgba(13, 115, 119, 0.1)';
         }
         
-        // Make draggable
+        // Make draggable and clickable
         makeDraggable(imageboxElement, 'imagebox', index);
+        imageboxElement.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectImageForEditing(index);
+        });
         
         card.appendChild(imageboxElement);
     });
@@ -1009,6 +1316,8 @@ function generateContentInputs() {
             masterCard.front.imageboxes.forEach((imagebox, imageboxIndex) => {
                 const tabIndex = (i * 10) + (masterCard.front.textboxes.length * 2) + (imageboxIndex * 2) + 1;
                 const inputId = `card_${i}_front_imagebox_${imageboxIndex}`;
+                const hasImage = cardContents[i]?.front?.imageboxes[imageboxIndex];
+                const imageName = hasImage ? cardContents[i].front.imageboxes[imageboxIndex].name : '';
                 
                 cardHTML += `
                     <div class="input-field">
@@ -1020,7 +1329,9 @@ function generateContentInputs() {
                             onchange="updateCardImageContent(${i}, 'front', ${imageboxIndex}, this)"
                             tabindex="${tabIndex}"
                         >
-                        ${cardContents[i]?.front?.imageboxes[imageboxIndex] ? '<div style="margin-top: 5px; font-size: 12px; color: #0d7377;">✓ Bild hochgeladen</div>' : ''}
+                        <div class="upload-indicator" style="margin-top: 5px; font-size: 12px; color: ${hasImage ? '#14a085' : '#666'};">
+                            ${hasImage ? '✓ Bild hochgeladen: ' + imageName : 'Kein Bild hochgeladen'}
+                        </div>
                     </div>
                 `;
             });
@@ -1064,6 +1375,8 @@ function generateContentInputs() {
                 const frontElementsCount = masterCard.front.textboxes.length + masterCard.front.imageboxes.length;
                 const tabIndex = (i * 10) + (frontElementsCount * 2) + (masterCard.back.textboxes.length * 2) + (imageboxIndex * 2) + 1;
                 const inputId = `card_${i}_back_imagebox_${imageboxIndex}`;
+                const hasImage = cardContents[i]?.back?.imageboxes[imageboxIndex];
+                const imageName = hasImage ? cardContents[i].back.imageboxes[imageboxIndex].name : '';
                 
                 cardHTML += `
                     <div class="input-field">
@@ -1075,7 +1388,9 @@ function generateContentInputs() {
                             onchange="updateCardImageContent(${i}, 'back', ${imageboxIndex}, this)"
                             tabindex="${tabIndex}"
                         >
-                        ${cardContents[i]?.back?.imageboxes[imageboxIndex] ? '<div style="margin-top: 5px; font-size: 12px; color: #0d7377;">✓ Bild hochgeladen</div>' : ''}
+                        <div class="upload-indicator" style="margin-top: 5px; font-size: 12px; color: ${hasImage ? '#14a085' : '#666'};">
+                            ${hasImage ? '✓ Bild hochgeladen: ' + imageName : 'Kein Bild hochgeladen'}
+                        </div>
                     </div>
                 `;
             });
@@ -1086,6 +1401,11 @@ function generateContentInputs() {
         cardInput.innerHTML = cardHTML;
         container.appendChild(cardInput);
     }
+    
+    // Update image upload indicators after content is rendered
+    setTimeout(() => {
+        updateImageUploadIndicators();
+    }, 100);
 }
 
 function updateCardContent(cardIndex, side, type, elementIndex, value) {
@@ -1099,14 +1419,67 @@ function updateCardImageContent(cardIndex, side, imageboxIndex, input) {
     if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            cardContents[cardIndex][side].imageboxes[imageboxIndex] = e.target.result;
+            // Store image data in the format expected by PDF generation
+            cardContents[cardIndex][side].imageboxes[imageboxIndex] = {
+                src: e.target.result,
+                name: file.name,
+                size: file.size
+            };
+            
+            // Update the visual indicator if it exists
+            const indicator = input.parentElement.querySelector('.upload-indicator');
+            if (indicator) {
+                indicator.textContent = '✓ Bild hochgeladen: ' + file.name;
+                indicator.style.color = '#14a085';
+            }
         };
         reader.readAsDataURL(file);
+    } else {
+        // Clear the image data if no file is selected
+        if (cardContents[cardIndex] && cardContents[cardIndex][side] && cardContents[cardIndex][side].imageboxes) {
+            cardContents[cardIndex][side].imageboxes[imageboxIndex] = null;
+        }
+        
+        // Update the visual indicator
+        const indicator = input.parentElement.querySelector('.upload-indicator');
+        if (indicator) {
+            indicator.textContent = 'Kein Bild hochgeladen';
+            indicator.style.color = '#666';
+        }
     }
 }
 
 function saveCardContents() {
     console.log('Card contents saved:', cardContents);
+}
+
+// Function to update visual indicators after content inputs are regenerated
+function updateImageUploadIndicators() {
+    cardContents.forEach((card, cardIndex) => {
+        // Check front side
+        if (card.front && card.front.imageboxes) {
+            card.front.imageboxes.forEach((imageData, imageboxIndex) => {
+                const indicator = document.querySelector(`#card_${cardIndex}_front_imagebox_${imageboxIndex}`);
+                const indicatorDiv = indicator?.parentElement?.querySelector('.upload-indicator');
+                if (indicatorDiv && imageData) {
+                    indicatorDiv.textContent = '✓ Bild hochgeladen: ' + imageData.name;
+                    indicatorDiv.style.color = '#14a085';
+                }
+            });
+        }
+        
+        // Check back side
+        if (card.back && card.back.imageboxes) {
+            card.back.imageboxes.forEach((imageData, imageboxIndex) => {
+                const indicator = document.querySelector(`#card_${cardIndex}_back_imagebox_${imageboxIndex}`);
+                const indicatorDiv = indicator?.parentElement?.querySelector('.upload-indicator');
+                if (indicatorDiv && imageData) {
+                    indicatorDiv.textContent = '✓ Bild hochgeladen: ' + imageData.name;
+                    indicatorDiv.style.color = '#14a085';
+                }
+            });
+        }
+    });
 }
 
 // PDF Export (Tab 4)
@@ -1255,6 +1628,22 @@ function createPDFCard(cardContent, cardIndex, side) {
             textboxElement.style.fontSize = (textbox.fontSize * 0.4) + 'px';
             textboxElement.style.color = textbox.fontColor;
             
+            // Apply new style properties with scaling
+            textboxElement.style.fontFamily = textbox.fontFamily || 'Arial';
+            textboxElement.style.fontWeight = textbox.bold ? 'bold' : 'normal';
+            textboxElement.style.fontStyle = textbox.italic ? 'italic' : 'normal';
+            textboxElement.style.textDecoration = textbox.underline ? 'underline' : 'none';
+            
+            // Apply background color
+            if (textbox.backgroundColor && textbox.backgroundColor !== 'transparent') {
+                textboxElement.style.backgroundColor = textbox.backgroundColor;
+            }
+            
+            // Apply border with scaling
+            if (textbox.borderColor && textbox.borderColor !== 'transparent' && textbox.borderWidth > 0) {
+                textboxElement.style.border = `${(textbox.borderWidth * 0.5)}px solid ${textbox.borderColor}`;
+            }
+            
             card.appendChild(textboxElement);
         });
     }
@@ -1269,6 +1658,17 @@ function createPDFCard(cardContent, cardIndex, side) {
             imageboxElement.style.width = (imagebox.width * 0.5) + 'px';
             imageboxElement.style.height = (imagebox.height * 0.5) + 'px';
             imageboxElement.style.overflow = 'hidden';
+            imageboxElement.style.boxSizing = 'border-box';
+            
+            // Apply border styles for PDF preview
+            if (imagebox.borderWidth > 0) {
+                imageboxElement.style.border = `${(imagebox.borderWidth * 0.5)}px solid ${imagebox.borderColor}`;
+            }
+            
+            // Apply opacity
+            if (imagebox.opacity !== undefined) {
+                imageboxElement.style.opacity = imagebox.opacity / 100;
+            }
             
             const imageData = contentSideData.imageboxes?.[imageboxIndex]?.src || imagebox.image;
             if (imageData) {
@@ -1521,5 +1921,6 @@ window.removeTextbox = removeTextbox;
 window.updateImageboxName = updateImageboxName;
 window.updateImageboxImage = updateImageboxImage;
 window.removeImagebox = removeImagebox;
+window.selectImageForEditing = selectImageForEditing;
 window.updateCardContent = updateCardContent;
 window.updateCardImageContent = updateCardImageContent;

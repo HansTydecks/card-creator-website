@@ -202,6 +202,67 @@
                         <div id="textboxList"></div>
                         <div id="imageboxList"></div>
                     </div>
+
+                    <!-- Image Controls Panel (Hidden by default, shown when image is selected) -->
+                    <div id="imageControlsPanel" class="image-controls-panel" style="display: none;">
+                        <h3>Bild-Eigenschaften</h3>
+                        
+                        <div class="form-group">
+                            <label>Bildgröße:</label>
+                            <div class="size-controls">
+                                <div class="size-input-group">
+                                    <label for="imageWidth">Breite (px):</label>
+                                    <input type="number" id="imageWidth" min="10" max="500" value="100">
+                                </div>
+                                <div class="size-input-group">
+                                    <label for="imageHeight">Höhe (px):</label>
+                                    <input type="number" id="imageHeight" min="10" max="500" value="100">
+                                </div>
+                                <button id="lockAspectRatio" class="btn btn-small" title="Seitenverhältnis beibehalten">🔒</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="imageBorderWidth">Rahmendicke (px):</label>
+                            <input type="range" id="imageBorderWidth" min="0" max="20" value="0">
+                            <span id="imageBorderWidthValue">0px</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="imageBorderColor">Rahmenfarbe:</label>
+                            <div class="color-picker-group">
+                                <div class="color-presets" data-target="imageBorderColor">
+                                    <div class="color-preset" data-color="#000000" style="background-color: #000000;" title="Schwarz"></div>
+                                    <div class="color-preset" data-color="#dc3545" style="background-color: #dc3545;" title="Rot"></div>
+                                    <div class="color-preset" data-color="#fd7e14" style="background-color: #fd7e14;" title="Orange"></div>
+                                    <div class="color-preset" data-color="#ffc107" style="background-color: #ffc107;" title="Gelb"></div>
+                                    <div class="color-preset" data-color="#28a745" style="background-color: #28a745;" title="Grün"></div>
+                                    <div class="color-preset" data-color="#007bff" style="background-color: #007bff;" title="Blau"></div>
+                                    <div class="color-preset" data-color="#6f42c1" style="background-color: #6f42c1;" title="Lila"></div>
+                                    <div class="color-preset" data-color="#e83e8c" style="background-color: #e83e8c;" title="Pink"></div>
+                                    <div class="color-preset" data-color="#17a2b8" style="background-color: #17a2b8;" title="Türkis"></div>
+                                    <div class="color-preset" data-color="#ffffff" style="background-color: #ffffff;" title="Weiß"></div>
+                                    <div class="color-preset" data-color="#6c757d" style="background-color: #6c757d;" title="Grau"></div>
+                                    <div class="color-preset" data-color="#343a40" style="background-color: #343a40;" title="Dunkelgrau"></div>
+                                </div>
+                                <div class="color-custom-row">
+                                    <div class="color-current-display" id="imageBorderColorDisplay"></div>
+                                    <div class="color-input-wrapper">
+                                        <input type="color" id="imageBorderColor" class="color-input-real" value="#000000">
+                                        <button type="button" class="color-custom-btn">Eigene Farbe wählen</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="imageOpacity">Transparenz:</label>
+                            <input type="range" id="imageOpacity" min="0" max="100" value="100">
+                            <span id="imageOpacityValue">100%</span>
+                        </div>
+
+                        <button id="deleteSelectedImage" class="btn btn-danger">Ausgewähltes Bild löschen</button>
+                    </div>
                 </div>
 
                 <div class="design-preview">

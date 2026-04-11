@@ -12,8 +12,10 @@ let masterCard = {
         backgroundColor: '#ffffff',
         borderWidth: 2,
         borderColor: '#000000',
+        borderStyle: 'solid',
         watermark: '',
-        backgroundImage: null,
+        watermarkSize: 12,
+        watermarkPosition: 'bottom-right',
         textboxes: [],
         imageboxes: []
     },
@@ -21,8 +23,10 @@ let masterCard = {
         backgroundColor: '#ffffff',
         borderWidth: 2,
         borderColor: '#000000',
+        borderStyle: 'solid',
         watermark: '',
-        backgroundImage: null,
+        watermarkSize: 12,
+        watermarkPosition: 'bottom-right',
         textboxes: [],
         imageboxes: []
     }
@@ -561,7 +565,8 @@ function initializeDesign() {
     const borderWidthValue = document.getElementById('borderWidthValue');
     const borderColor = document.getElementById('borderColor');
     const watermarkText = document.getElementById('watermarkText');
-    const backgroundImage = document.getElementById('backgroundImage');
+    const watermarkSize = document.getElementById('watermarkSize');
+    const watermarkSizeValue = document.getElementById('watermarkSizeValue');
     const addTextboxBtn = document.getElementById('addTextbox');
     const addImageboxBtn = document.getElementById('addImagebox');
     
@@ -599,20 +604,38 @@ function initializeDesign() {
     // Watermark
     watermarkText.addEventListener('input', () => {
         masterCard[currentSide].watermark = watermarkText.value;
+        // Show/hide watermark options based on whether text is entered
+        const hasText = watermarkText.value.trim().length > 0;
+        document.getElementById('watermarkOptionsGroup').style.display = hasText ? 'block' : 'none';
+        document.getElementById('watermarkPositionGroup').style.display = hasText ? 'block' : 'none';
         updateCardPreview();
     });
 
-    // Background image
-    backgroundImage.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                masterCard[currentSide].backgroundImage = e.target.result;
-                updateCardPreview();
-            };
-            reader.readAsDataURL(file);
-        }
+    // Watermark size
+    watermarkSize.addEventListener('input', () => {
+        masterCard[currentSide].watermarkSize = parseInt(watermarkSize.value);
+        watermarkSizeValue.textContent = watermarkSize.value + 'px';
+        updateCardPreview();
+    });
+
+    // Watermark position buttons
+    document.querySelectorAll('.wm-pos-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.wm-pos-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            masterCard[currentSide].watermarkPosition = btn.getAttribute('data-position');
+            updateCardPreview();
+        });
+    });
+
+    // Border style buttons
+    document.querySelectorAll('.border-style-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.border-style-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            masterCard[currentSide].borderStyle = btn.getAttribute('data-style');
+            updateCardPreview();
+        });
     });
 
     // Add textbox
@@ -675,15 +698,29 @@ function updateFormControls() {
     document.getElementById('borderWidthValue').textContent = currentCardSide.borderWidth + 'px';
     document.getElementById('borderColor').value = currentCardSide.borderColor;
     document.getElementById('watermarkText').value = currentCardSide.watermark;
+    document.getElementById('watermarkSize').value = currentCardSide.watermarkSize || 12;
+    document.getElementById('watermarkSizeValue').textContent = (currentCardSide.watermarkSize || 12) + 'px';
+    
+    // Show/hide watermark options
+    const hasWatermark = currentCardSide.watermark.trim().length > 0;
+    document.getElementById('watermarkOptionsGroup').style.display = hasWatermark ? 'block' : 'none';
+    document.getElementById('watermarkPositionGroup').style.display = hasWatermark ? 'block' : 'none';
+    
+    // Update watermark position buttons
+    document.querySelectorAll('.wm-pos-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-position') === (currentCardSide.watermarkPosition || 'bottom-right'));
+    });
+    
+    // Update border style buttons
+    document.querySelectorAll('.border-style-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-style') === (currentCardSide.borderStyle || 'solid'));
+    });
     
     // Update color displays and presets
     updateColorDisplay('backgroundColor', currentCardSide.backgroundColor);
     updateColorDisplay('borderColor', currentCardSide.borderColor);
     updateActivePresetForColor('backgroundColor', currentCardSide.backgroundColor);
     updateActivePresetForColor('borderColor', currentCardSide.borderColor);
-    
-    // Reset background image input (file inputs can't be set programmatically)
-    document.getElementById('backgroundImage').value = '';
 }
 
 function addTextbox() {
@@ -1046,16 +1083,10 @@ function updateCardPreview() {
     card.style.backgroundColor = currentCardSide.backgroundColor;
     card.style.borderWidth = currentCardSide.borderWidth + 'px';
     card.style.borderColor = currentCardSide.borderColor;
-    card.style.borderStyle = 'solid';
+    card.style.borderStyle = currentCardSide.borderStyle || 'solid';
 
-    // Background image
-    if (currentCardSide.backgroundImage) {
-        card.style.backgroundImage = `url(${currentCardSide.backgroundImage})`;
-        card.style.backgroundSize = 'cover';
-        card.style.backgroundPosition = 'center';
-    } else {
-        card.style.backgroundImage = 'none';
-    }
+    // No background image support anymore
+    card.style.backgroundImage = 'none';
 
     // Clear existing content
     card.innerHTML = '';
@@ -1068,14 +1099,9 @@ function updateCardPreview() {
         textboxElement.style.left = textbox.x + 'px';
         textboxElement.style.top = textbox.y + 'px';
         
-        // Set minimum dimensions but allow auto-sizing for content
-        textboxElement.style.minWidth = Math.max(textbox.width, 40) + 'px';
-        textboxElement.style.minHeight = Math.max(textbox.height, 20) + 'px';
-        
-        // Let the content determine the actual size
-        textboxElement.style.width = 'auto';
-        textboxElement.style.height = 'auto';
-        textboxElement.style.maxWidth = '300px'; // Prevent excessive width
+        // Use explicit width/height for resizable elements
+        textboxElement.style.width = Math.max(textbox.width, 40) + 'px';
+        textboxElement.style.height = Math.max(textbox.height, 20) + 'px';
         
         textboxElement.style.fontSize = textbox.fontSize + 'px';
         textboxElement.style.color = textbox.fontColor;
@@ -1102,6 +1128,9 @@ function updateCardPreview() {
         
         // Make draggable
         makeDraggable(textboxElement, 'textbox', index);
+        
+        // Add resize handle
+        addResizeHandle(textboxElement, 'textbox', index);
         
         card.appendChild(textboxElement);
     });
@@ -1153,6 +1182,7 @@ function updateCardPreview() {
         
         // Make draggable and clickable
         makeDraggable(imageboxElement, 'imagebox', index);
+        addResizeHandle(imageboxElement, 'imagebox', index);
         imageboxElement.addEventListener('click', (e) => {
             e.stopPropagation();
             selectImageForEditing(index);
@@ -1161,13 +1191,100 @@ function updateCardPreview() {
         card.appendChild(imageboxElement);
     });
 
-    // Add watermark
+    // Add watermark with size and position
     if (currentCardSide.watermark) {
         const watermark = document.createElement('div');
         watermark.className = 'card-watermark';
         watermark.textContent = currentCardSide.watermark;
+        
+        const wmSize = currentCardSide.watermarkSize || 12;
+        const wmPos = currentCardSide.watermarkPosition || 'bottom-right';
+        watermark.style.fontSize = wmSize + 'px';
+        
+        // Reset positioning
+        watermark.style.top = 'auto';
+        watermark.style.bottom = 'auto';
+        watermark.style.left = 'auto';
+        watermark.style.right = 'auto';
+        watermark.style.transform = 'none';
+        watermark.style.textAlign = 'left';
+        watermark.style.width = 'auto';
+        
+        switch (wmPos) {
+            case 'top-left':
+                watermark.style.top = '5px'; watermark.style.left = '5px'; break;
+            case 'top-center':
+                watermark.style.top = '5px'; watermark.style.left = '50%'; watermark.style.transform = 'translateX(-50%)'; break;
+            case 'top-right':
+                watermark.style.top = '5px'; watermark.style.right = '5px'; break;
+            case 'middle-left':
+                watermark.style.top = '50%'; watermark.style.left = '5px'; watermark.style.transform = 'translateY(-50%)'; break;
+            case 'center':
+                watermark.style.top = '50%'; watermark.style.left = '50%'; watermark.style.transform = 'translate(-50%, -50%)'; break;
+            case 'middle-right':
+                watermark.style.top = '50%'; watermark.style.right = '5px'; watermark.style.transform = 'translateY(-50%)'; break;
+            case 'bottom-left':
+                watermark.style.bottom = '5px'; watermark.style.left = '5px'; break;
+            case 'bottom-center':
+                watermark.style.bottom = '5px'; watermark.style.left = '50%'; watermark.style.transform = 'translateX(-50%)'; break;
+            case 'bottom-right':
+            default:
+                watermark.style.bottom = '5px'; watermark.style.right = '5px'; break;
+        }
+        
         card.appendChild(watermark);
     }
+}
+
+function addResizeHandle(element, type, index) {
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle-se';
+    element.appendChild(handle);
+    
+    let isResizing = false;
+    let startX, startY, startWidth, startHeight;
+    
+    handle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startWidth = element.offsetWidth;
+        startHeight = element.offsetHeight;
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const onMouseMove = (e) => {
+            if (!isResizing) return;
+            
+            const newWidth = Math.max(30, startWidth + (e.clientX - startX));
+            const newHeight = Math.max(20, startHeight + (e.clientY - startY));
+            
+            element.style.width = newWidth + 'px';
+            element.style.height = newHeight + 'px';
+            
+            if (type === 'textbox') {
+                masterCard[currentSide].textboxes[index].width = newWidth;
+                masterCard[currentSide].textboxes[index].height = newHeight;
+            } else if (type === 'imagebox') {
+                masterCard[currentSide].imageboxes[index].width = newWidth;
+                masterCard[currentSide].imageboxes[index].height = newHeight;
+                // Update image controls if panel is open
+                if (index === selectedImageIndex) {
+                    document.getElementById('imageWidth').value = newWidth;
+                    document.getElementById('imageHeight').value = newHeight;
+                }
+            }
+        };
+        
+        const onMouseUp = () => {
+            isResizing = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+        
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    });
 }
 
 function makeDraggable(element, type, index) {
@@ -1246,11 +1363,9 @@ function generateContentInputs() {
     // Save existing values before regenerating
     const existingValues = {};
     if (container.innerHTML !== '') {
-        // Extract values from existing form elements
         const inputs = container.querySelectorAll('textarea, input[type="file"]');
         inputs.forEach(input => {
             if (input.type === 'file') {
-                // For file inputs, we keep the data in cardContents already
                 return;
             } else {
                 existingValues[input.id] = input.value;
@@ -1261,12 +1376,9 @@ function generateContentInputs() {
     container.innerHTML = '';
 
     // Ensure card contents array is properly sized and structured
-    // This is now handled by updateCardContentsForNewGrid() when grid changes
     if (cardContents.length === 0) {
-        // Only initialize if completely empty (first time)
         updateCardContentsForNewGrid();
     } else {
-        // Ensure we have enough cards for current actual count
         while (cardContents.length < projectConfig.actualCardCount) {
             const newCard = {
                 cardIndex: cardContents.length,
@@ -1281,6 +1393,68 @@ function generateContentInputs() {
             };
             cardContents.push(newCard);
         }
+    }
+
+    // Add bulk paste section at the top for each textbox
+    const hasFrontTextboxes = masterCard.front.textboxes.length > 0;
+    const hasBackTextboxes = masterCard.back.textboxes.length > 0;
+    
+    if (hasFrontTextboxes || hasBackTextboxes) {
+        const bulkSection = document.createElement('div');
+        bulkSection.className = 'bulk-paste-section';
+        bulkSection.innerHTML = '<h3>Massenimport</h3><p class="form-help">F\u00fcgen Sie Inhalte f\u00fcr alle Karten auf einmal ein. W\u00e4hlen Sie ein Trennzeichen und f\u00fcgen Sie den Text ein.</p>';
+        
+        // Create bulk paste for front textboxes
+        if (hasFrontTextboxes) {
+            masterCard.front.textboxes.forEach((textbox, textboxIndex) => {
+                const bulkItem = document.createElement('div');
+                bulkItem.className = 'bulk-paste-item';
+                bulkItem.innerHTML = `
+                    <label>\ud83d\udcc4 Vorderseite \u2013 ${textbox.text}:</label>
+                    <div class="bulk-paste-controls">
+                        <select id="bulkSep_front_${textboxIndex}" class="bulk-separator-select">
+                            <option value="newline">Zeilenumbruch</option>
+                            <option value="comma">Komma (,)</option>
+                            <option value="semicolon">Semikolon (;)</option>
+                            <option value="tab">Tabulator</option>
+                        </select>
+                        <button class="btn btn-secondary btn-small" onclick="toggleBulkPaste('front', ${textboxIndex})">Einf\u00fcgen</button>
+                    </div>
+                    <div id="bulkArea_front_${textboxIndex}" class="bulk-paste-area" style="display: none;">
+                        <textarea id="bulkText_front_${textboxIndex}" placeholder="Inhalte hier einf\u00fcgen\u2026\nJede Zeile wird einer Karte zugewiesen." rows="5"></textarea>
+                        <button class="btn btn-primary btn-small" onclick="applyBulkPaste('front', ${textboxIndex})">\u00dcbernehmen</button>
+                    </div>
+                `;
+                bulkSection.appendChild(bulkItem);
+            });
+        }
+        
+        // Create bulk paste for back textboxes
+        if (hasBackTextboxes) {
+            masterCard.back.textboxes.forEach((textbox, textboxIndex) => {
+                const bulkItem = document.createElement('div');
+                bulkItem.className = 'bulk-paste-item';
+                bulkItem.innerHTML = `
+                    <label>\ud83d\udd04 R\u00fcckseite \u2013 ${textbox.text}:</label>
+                    <div class="bulk-paste-controls">
+                        <select id="bulkSep_back_${textboxIndex}" class="bulk-separator-select">
+                            <option value="newline">Zeilenumbruch</option>
+                            <option value="comma">Komma (,)</option>
+                            <option value="semicolon">Semikolon (;)</option>
+                            <option value="tab">Tabulator</option>
+                        </select>
+                        <button class="btn btn-secondary btn-small" onclick="toggleBulkPaste('back', ${textboxIndex})">Einf\u00fcgen</button>
+                    </div>
+                    <div id="bulkArea_back_${textboxIndex}" class="bulk-paste-area" style="display: none;">
+                        <textarea id="bulkText_back_${textboxIndex}" placeholder="Inhalte hier einf\u00fcgen\u2026\nJede Zeile wird einer Karte zugewiesen." rows="5"></textarea>
+                        <button class="btn btn-primary btn-small" onclick="applyBulkPaste('back', ${textboxIndex})">\u00dcbernehmen</button>
+                    </div>
+                `;
+                bulkSection.appendChild(bulkItem);
+            });
+        }
+        
+        container.appendChild(bulkSection);
     }
     
     for (let i = 0; i < projectConfig.actualCardCount; i++) {
@@ -1460,6 +1634,48 @@ function saveCardContents() {
     console.log('Card contents saved:', cardContents);
 }
 
+// Bulk paste functions
+function toggleBulkPaste(side, textboxIndex) {
+    const area = document.getElementById(`bulkArea_${side}_${textboxIndex}`);
+    area.style.display = area.style.display === 'none' ? 'block' : 'none';
+}
+
+function applyBulkPaste(side, textboxIndex) {
+    const separator = document.getElementById(`bulkSep_${side}_${textboxIndex}`).value;
+    const rawText = document.getElementById(`bulkText_${side}_${textboxIndex}`).value;
+    
+    let parts;
+    switch (separator) {
+        case 'comma': parts = rawText.split(','); break;
+        case 'semicolon': parts = rawText.split(';'); break;
+        case 'tab': parts = rawText.split('\t'); break;
+        case 'newline':
+        default: parts = rawText.split('\n'); break;
+    }
+    
+    // Trim whitespace from each part
+    parts = parts.map(p => p.trim()).filter(p => p.length > 0);
+    
+    // Distribute across cards
+    for (let i = 0; i < projectConfig.actualCardCount && i < parts.length; i++) {
+        if (!cardContents[i]) continue;
+        if (!cardContents[i][side]) continue;
+        
+        cardContents[i][side].textboxes[textboxIndex] = parts[i];
+        
+        // Update the textarea in the UI
+        const inputId = `card_${i}_${side}_textbox_${textboxIndex}`;
+        const textarea = document.getElementById(inputId);
+        if (textarea) {
+            textarea.value = parts[i];
+        }
+    }
+    
+    // Hide the bulk paste area
+    document.getElementById(`bulkArea_${side}_${textboxIndex}`).style.display = 'none';
+    document.getElementById(`bulkText_${side}_${textboxIndex}`).value = '';
+}
+
 // Function to update visual indicators after content inputs are regenerated
 function updateImageUploadIndicators() {
     cardContents.forEach((card, cardIndex) => {
@@ -1501,8 +1717,8 @@ function generatePDFPreview() {
         (masterCard.back.backgroundColor !== masterCard.front.backgroundColor) ||
         (masterCard.back.borderWidth !== masterCard.front.borderWidth) ||
         (masterCard.back.borderColor !== masterCard.front.borderColor) ||
-        (masterCard.back.watermark !== masterCard.front.watermark) ||
-        (masterCard.back.backgroundImage !== masterCard.front.backgroundImage)
+        (masterCard.back.borderStyle !== masterCard.front.borderStyle) ||
+        (masterCard.back.watermark !== masterCard.front.watermark)
     );
 
     // Create container for front page
@@ -1612,13 +1828,9 @@ function createPDFCard(cardContent, cardIndex, side) {
     card.style.backgroundColor = cardSideData.backgroundColor;
     card.style.borderWidth = (cardSideData.borderWidth * 0.5) + 'px'; // Scale down for preview
     card.style.borderColor = cardSideData.borderColor;
-    card.style.borderStyle = 'solid';
+    card.style.borderStyle = cardSideData.borderStyle || 'solid';
 
-    if (cardSideData.backgroundImage) {
-        card.style.backgroundImage = `url(${cardSideData.backgroundImage})`;
-        card.style.backgroundSize = 'cover';
-        card.style.backgroundPosition = 'center';
-    }
+    // No background image support
 
     // Add textboxes with content
     if (cardSideData.textboxes) {
@@ -1699,12 +1911,45 @@ function createPDFCard(cardContent, cardIndex, side) {
         });
     }
 
-    // Add watermark
+    // Add watermark with size and position
     if (cardSideData.watermark) {
         const watermark = document.createElement('div');
         watermark.className = 'card-watermark';
         watermark.textContent = cardSideData.watermark;
-        watermark.style.fontSize = '4px';
+        
+        const wmSize = (cardSideData.watermarkSize || 12) * 0.4;
+        const wmPos = cardSideData.watermarkPosition || 'bottom-right';
+        watermark.style.fontSize = wmSize + 'px';
+        
+        // Reset positioning
+        watermark.style.top = 'auto';
+        watermark.style.bottom = 'auto';
+        watermark.style.left = 'auto';
+        watermark.style.right = 'auto';
+        watermark.style.transform = 'none';
+        
+        switch (wmPos) {
+            case 'top-left':
+                watermark.style.top = '2px'; watermark.style.left = '2px'; break;
+            case 'top-center':
+                watermark.style.top = '2px'; watermark.style.left = '50%'; watermark.style.transform = 'translateX(-50%)'; break;
+            case 'top-right':
+                watermark.style.top = '2px'; watermark.style.right = '2px'; break;
+            case 'middle-left':
+                watermark.style.top = '50%'; watermark.style.left = '2px'; watermark.style.transform = 'translateY(-50%)'; break;
+            case 'center':
+                watermark.style.top = '50%'; watermark.style.left = '50%'; watermark.style.transform = 'translate(-50%, -50%)'; break;
+            case 'middle-right':
+                watermark.style.top = '50%'; watermark.style.right = '2px'; watermark.style.transform = 'translateY(-50%)'; break;
+            case 'bottom-left':
+                watermark.style.bottom = '2px'; watermark.style.left = '2px'; break;
+            case 'bottom-center':
+                watermark.style.bottom = '2px'; watermark.style.left = '50%'; watermark.style.transform = 'translateX(-50%)'; break;
+            case 'bottom-right':
+            default:
+                watermark.style.bottom = '2px'; watermark.style.right = '2px'; break;
+        }
+        
         card.appendChild(watermark);
     }
 
@@ -1725,7 +1970,134 @@ async function generatePDF() {
     const cardWidth = availableWidth / projectConfig.grid.width;
     const cardHeight = availableHeight / projectConfig.grid.height;
 
-    // Create cards for front side - only export actual cards, not the full grid
+    // Helper: convert SVG data URL to PNG data URL
+    async function convertSvgToPng(svgDataUrl, width, height) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = width * 2;
+                canvas.height = height * 2;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/png'));
+            };
+            img.onerror = function() {
+                resolve(null);
+            };
+            img.src = svgDataUrl;
+        });
+    }
+
+    // Helper: detect image format from data URL
+    function getImageFormat(dataUrl) {
+        if (dataUrl.startsWith('data:image/svg')) return 'SVG';
+        if (dataUrl.startsWith('data:image/png')) return 'PNG';
+        if (dataUrl.startsWith('data:image/gif')) return 'GIF';
+        return 'JPEG';
+    }
+
+    // Helper: add image to PDF with SVG support
+    async function addImageToPdf(imageDataUrl, x, y, w, h) {
+        let format = getImageFormat(imageDataUrl);
+        let src = imageDataUrl;
+        
+        if (format === 'SVG') {
+            // Convert SVG to PNG for PDF compatibility
+            const pngData = await convertSvgToPng(imageDataUrl, Math.round(w * 10), Math.round(h * 10));
+            if (pngData) {
+                src = pngData;
+                format = 'PNG';
+            } else {
+                return; // Skip if conversion fails
+            }
+        }
+        
+        try {
+            pdf.addImage(src, format, x, y, w, h);
+        } catch (error) {
+            console.warn('Error adding image to PDF:', error);
+        }
+    }
+
+    // Helper: draw border with style
+    function drawStyledBorder(x, y, w, h, borderWidth, borderColor, borderStyle) {
+        pdf.setDrawColor(borderColor);
+        const lineWidth = borderWidth * 0.1;
+        pdf.setLineWidth(lineWidth);
+        
+        if (borderStyle === 'dashed') {
+            // Draw dashed rectangle
+            const dashLen = 2;
+            const gapLen = 1.5;
+            drawDashedLine(x, y, x + w, y, dashLen, gapLen);
+            drawDashedLine(x + w, y, x + w, y + h, dashLen, gapLen);
+            drawDashedLine(x + w, y + h, x, y + h, dashLen, gapLen);
+            drawDashedLine(x, y + h, x, y, dashLen, gapLen);
+        } else if (borderStyle === 'dotted') {
+            const dotSpacing = 0.8;
+            drawDashedLine(x, y, x + w, y, 0.2, dotSpacing);
+            drawDashedLine(x + w, y, x + w, y + h, 0.2, dotSpacing);
+            drawDashedLine(x + w, y + h, x, y + h, 0.2, dotSpacing);
+            drawDashedLine(x, y + h, x, y, 0.2, dotSpacing);
+        } else if (borderStyle === 'double') {
+            const offset = lineWidth * 2;
+            pdf.rect(x, y, w, h);
+            pdf.rect(x + offset, y + offset, w - offset * 2, h - offset * 2);
+        } else {
+            pdf.rect(x, y, w, h);
+        }
+    }
+
+    function drawDashedLine(x1, y1, x2, y2, dashLen, gapLen) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const ux = dx / len;
+        const uy = dy / len;
+        let pos = 0;
+        while (pos < len) {
+            const endPos = Math.min(pos + dashLen, len);
+            pdf.line(x1 + ux * pos, y1 + uy * pos, x1 + ux * endPos, y1 + uy * endPos);
+            pos = endPos + gapLen;
+        }
+    }
+
+    // Helper: add watermark to PDF card
+    function addWatermarkToPdf(wmText, wmSize, wmPos, x, y, cardW, cardH) {
+        const fontSize = (wmSize || 12) * 0.25;
+        pdf.setFontSize(fontSize);
+        pdf.setTextColor(128, 128, 128);
+        
+        const textWidth = pdf.getTextWidth(wmText);
+        let wmX, wmY;
+        
+        switch (wmPos) {
+            case 'top-left':
+                wmX = x + 1; wmY = y + fontSize * 0.4; break;
+            case 'top-center':
+                wmX = x + (cardW - textWidth) / 2; wmY = y + fontSize * 0.4; break;
+            case 'top-right':
+                wmX = x + cardW - textWidth - 1; wmY = y + fontSize * 0.4; break;
+            case 'middle-left':
+                wmX = x + 1; wmY = y + cardH / 2; break;
+            case 'center':
+                wmX = x + (cardW - textWidth) / 2; wmY = y + cardH / 2; break;
+            case 'middle-right':
+                wmX = x + cardW - textWidth - 1; wmY = y + cardH / 2; break;
+            case 'bottom-left':
+                wmX = x + 1; wmY = y + cardH - 1; break;
+            case 'bottom-center':
+                wmX = x + (cardW - textWidth) / 2; wmY = y + cardH - 1; break;
+            case 'bottom-right':
+            default:
+                wmX = x + cardW - textWidth - 1; wmY = y + cardH - 1; break;
+        }
+        
+        pdf.text(wmText, wmX, wmY);
+    }
+
+    // Create cards for front side
     const totalCards = projectConfig.actualCardCount;
     for (let i = 0; i < totalCards; i++) {
         const row = Math.floor(i / projectConfig.grid.width);
@@ -1734,31 +2106,26 @@ async function generatePDF() {
         const x = margin + (col * cardWidth);
         const y = margin + (row * cardHeight);
 
-        // Get current side data
-        const currentSide = masterCard.front;
+        const currentSideData = masterCard.front;
 
         // Draw card background
-        pdf.setFillColor(currentSide.backgroundColor);
+        pdf.setFillColor(currentSideData.backgroundColor);
         pdf.rect(x, y, cardWidth, cardHeight, 'F');
 
-        // Draw border
-        pdf.setDrawColor(currentSide.borderColor);
-        pdf.setLineWidth(currentSide.borderWidth * 0.1);
-        pdf.rect(x, y, cardWidth, cardHeight);
+        // Draw border with style
+        drawStyledBorder(x, y, cardWidth, cardHeight, currentSideData.borderWidth, currentSideData.borderColor, currentSideData.borderStyle || 'solid');
 
         // Add textboxes
-        if (currentSide.textboxes && i < cardContents.length) {
-            currentSide.textboxes.forEach((textbox, textboxIndex) => {
+        if (currentSideData.textboxes && i < cardContents.length) {
+            currentSideData.textboxes.forEach((textbox, textboxIndex) => {
                 const content = cardContents[i].front?.textboxes?.[textboxIndex] || textbox.text;
                 
-                // Scale textbox position and size
                 const textX = x + (textbox.x * cardWidth / 200);
                 const textY = y + (textbox.y * cardHeight / 280) + (textbox.fontSize * 0.1);
                 
                 pdf.setFontSize(textbox.fontSize * 0.3);
                 pdf.setTextColor(textbox.fontColor);
                 
-                // Split text into lines that fit the textbox width
                 const maxWidth = (textbox.width * cardWidth / 200);
                 const lines = pdf.splitTextToSize(content, maxWidth);
                 
@@ -1766,9 +2133,9 @@ async function generatePDF() {
             });
         }
 
-        // Add images
-        if (currentSide.imageboxes && i < cardContents.length) {
-            currentSide.imageboxes.forEach((imagebox, imageboxIndex) => {
+        // Add images (with SVG support)
+        if (currentSideData.imageboxes && i < cardContents.length) {
+            for (const [imageboxIndex, imagebox] of currentSideData.imageboxes.entries()) {
                 const imageData = cardContents[i].front?.imageboxes?.[imageboxIndex];
                 
                 if (imageData && imageData.src) {
@@ -1777,20 +2144,14 @@ async function generatePDF() {
                     const imgWidth = imagebox.width * cardWidth / 200;
                     const imgHeight = imagebox.height * cardHeight / 280;
                     
-                    try {
-                        pdf.addImage(imageData.src, 'JPEG', imgX, imgY, imgWidth, imgHeight);
-                    } catch (error) {
-                        console.warn('Error adding image to PDF:', error);
-                    }
+                    await addImageToPdf(imageData.src, imgX, imgY, imgWidth, imgHeight);
                 }
-            });
+            }
         }
 
         // Add watermark
-        if (currentSide.watermark) {
-            pdf.setFontSize(6);
-            pdf.setTextColor(128, 128, 128);
-            pdf.text(currentSide.watermark, x + cardWidth - 15, y + cardHeight - 2);
+        if (currentSideData.watermark) {
+            addWatermarkToPdf(currentSideData.watermark, currentSideData.watermarkSize, currentSideData.watermarkPosition, x, y, cardWidth, cardHeight);
         }
     }
 
@@ -1801,14 +2162,13 @@ async function generatePDF() {
         (masterCard.back.backgroundColor !== masterCard.front.backgroundColor) ||
         (masterCard.back.borderWidth !== masterCard.front.borderWidth) ||
         (masterCard.back.borderColor !== masterCard.front.borderColor) ||
-        (masterCard.back.watermark !== masterCard.front.watermark) ||
-        (masterCard.back.backgroundImage !== masterCard.front.backgroundImage)
+        (masterCard.back.borderStyle !== masterCard.front.borderStyle) ||
+        (masterCard.back.watermark !== masterCard.front.watermark)
     );
 
     if (hasBackContent) {
         pdf.addPage();
         
-        // Create cards for back side (same order as front side)
         for (let i = 0; i < totalCards; i++) {
             const row = Math.floor(i / projectConfig.grid.width);
             const col = i % projectConfig.grid.width;
@@ -1816,31 +2176,26 @@ async function generatePDF() {
             const x = margin + (col * cardWidth);
             const y = margin + (row * cardHeight);
 
-            // Get current side data
-            const currentSide = masterCard.back;
+            const currentSideData = masterCard.back;
 
             // Draw card background
-            pdf.setFillColor(currentSide.backgroundColor);
+            pdf.setFillColor(currentSideData.backgroundColor);
             pdf.rect(x, y, cardWidth, cardHeight, 'F');
 
-            // Draw border
-            pdf.setDrawColor(currentSide.borderColor);
-            pdf.setLineWidth(currentSide.borderWidth * 0.1);
-            pdf.rect(x, y, cardWidth, cardHeight);
+            // Draw border with style
+            drawStyledBorder(x, y, cardWidth, cardHeight, currentSideData.borderWidth, currentSideData.borderColor, currentSideData.borderStyle || 'solid');
 
             // Add textboxes
-            if (currentSide.textboxes && i < cardContents.length) {
-                currentSide.textboxes.forEach((textbox, textboxIndex) => {
+            if (currentSideData.textboxes && i < cardContents.length) {
+                currentSideData.textboxes.forEach((textbox, textboxIndex) => {
                     const content = cardContents[i].back?.textboxes?.[textboxIndex] || textbox.text;
                     
-                    // Scale textbox position and size
                     const textX = x + (textbox.x * cardWidth / 200);
                     const textY = y + (textbox.y * cardHeight / 280) + (textbox.fontSize * 0.1);
                     
                     pdf.setFontSize(textbox.fontSize * 0.3);
                     pdf.setTextColor(textbox.fontColor);
                     
-                    // Split text into lines that fit the textbox width
                     const maxWidth = (textbox.width * cardWidth / 200);
                     const lines = pdf.splitTextToSize(content, maxWidth);
                     
@@ -1848,9 +2203,9 @@ async function generatePDF() {
                 });
             }
 
-            // Add images
-            if (currentSide.imageboxes && i < cardContents.length) {
-                currentSide.imageboxes.forEach((imagebox, imageboxIndex) => {
+            // Add images (with SVG support)
+            if (currentSideData.imageboxes && i < cardContents.length) {
+                for (const [imageboxIndex, imagebox] of currentSideData.imageboxes.entries()) {
                     const imageData = cardContents[i].back?.imageboxes?.[imageboxIndex];
                     
                     if (imageData && imageData.src) {
@@ -1859,20 +2214,14 @@ async function generatePDF() {
                         const imgWidth = imagebox.width * cardWidth / 200;
                         const imgHeight = imagebox.height * cardHeight / 280;
                         
-                        try {
-                            pdf.addImage(imageData.src, 'JPEG', imgX, imgY, imgWidth, imgHeight);
-                        } catch (error) {
-                            console.warn('Error adding image to PDF:', error);
-                        }
+                        await addImageToPdf(imageData.src, imgX, imgY, imgWidth, imgHeight);
                     }
-                });
+                }
             }
 
             // Add watermark
-            if (currentSide.watermark) {
-                pdf.setFontSize(6);
-                pdf.setTextColor(128, 128, 128);
-                pdf.text(currentSide.watermark, x + cardWidth - 15, y + cardHeight - 2);
+            if (currentSideData.watermark) {
+                addWatermarkToPdf(currentSideData.watermark, currentSideData.watermarkSize, currentSideData.watermarkPosition, x, y, cardWidth, cardHeight);
             }
         }
     }
@@ -1895,8 +2244,10 @@ function resetApp() {
             backgroundColor: '#ffffff',
             borderWidth: 2,
             borderColor: '#000000',
+            borderStyle: 'solid',
             watermark: '',
-            backgroundImage: null,
+            watermarkSize: 12,
+            watermarkPosition: 'bottom-right',
             textboxes: [],
             imageboxes: []
         },
@@ -1904,8 +2255,10 @@ function resetApp() {
             backgroundColor: '#ffffff',
             borderWidth: 2,
             borderColor: '#000000',
+            borderStyle: 'solid',
             watermark: '',
-            backgroundImage: null,
+            watermarkSize: 12,
+            watermarkPosition: 'bottom-right',
             textboxes: [],
             imageboxes: []
         }
@@ -1924,6 +2277,15 @@ function resetApp() {
 window.updateTextboxText = updateTextboxText;
 window.updateTextboxFontSize = updateTextboxFontSize;
 window.updateTextboxColor = updateTextboxColor;
+window.updateTextboxFontFamily = updateTextboxFontFamily;
+window.toggleTextboxBold = toggleTextboxBold;
+window.toggleTextboxItalic = toggleTextboxItalic;
+window.toggleTextboxUnderline = toggleTextboxUnderline;
+window.updateTextboxBackgroundColor = updateTextboxBackgroundColor;
+window.clearTextboxBackground = clearTextboxBackground;
+window.updateTextboxBorderColor = updateTextboxBorderColor;
+window.updateTextboxBorderWidth = updateTextboxBorderWidth;
+window.clearTextboxBorder = clearTextboxBorder;
 window.removeTextbox = removeTextbox;
 window.updateImageboxName = updateImageboxName;
 window.updateImageboxImage = updateImageboxImage;
@@ -1931,3 +2293,5 @@ window.removeImagebox = removeImagebox;
 window.selectImageForEditing = selectImageForEditing;
 window.updateCardContent = updateCardContent;
 window.updateCardImageContent = updateCardImageContent;
+window.toggleBulkPaste = toggleBulkPaste;
+window.applyBulkPaste = applyBulkPaste;

@@ -16,6 +16,9 @@ let masterCard = {
         watermark: '',
         watermarkSize: 12,
         watermarkPosition: 'bottom-right',
+        watermarkImage: null,
+        watermarkImageSize: 30,
+        watermarkImageOpacity: 30,
         textboxes: [],
         imageboxes: []
     },
@@ -27,6 +30,9 @@ let masterCard = {
         watermark: '',
         watermarkSize: 12,
         watermarkPosition: 'bottom-right',
+        watermarkImage: null,
+        watermarkImageSize: 30,
+        watermarkImageOpacity: 30,
         textboxes: [],
         imageboxes: []
     }
@@ -120,14 +126,9 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeDesign();
     updateGridPreview();
     
-    // Initialize card count dropdown
+    // Initialize card count display
     updateActualCardCountOptions();
-    
-    // Stelle sicher, dass das Dropdown den korrekten initialen Wert zeigt
-    const actualCardCountSelect = document.getElementById('actualCardCount');
-    if (actualCardCountSelect) {
-        actualCardCountSelect.value = projectConfig.actualCardCount;
-    }
+    updatePageInfo();
     
     // Initialize color pickers after all other initialization
     setTimeout(() => {
@@ -196,13 +197,9 @@ function switchTab(tabName) {
             updateCardPreviewDimensions(); // Ensure correct card dimensions
         }, 50);
     } else if (tabName === 'content') {
-        // Only generate content inputs if they don't exist or if master card has changed
-        const container = document.getElementById('contentInputs');
-        const needsRegeneration = container.innerHTML === '' || 
-                                cardContents.length !== projectConfig.cardCount;
-        
-        if (needsRegeneration && (masterCard.front.textboxes.length > 0 || masterCard.front.imageboxes.length > 0 || 
-            masterCard.back.textboxes.length > 0 || masterCard.back.imageboxes.length > 0)) {
+        // Always regenerate content inputs (preserves existing values internally)
+        if (masterCard.front.textboxes.length > 0 || masterCard.front.imageboxes.length > 0 || 
+            masterCard.back.textboxes.length > 0 || masterCard.back.imageboxes.length > 0) {
             generateContentInputs();
         }
     } else if (tabName === 'export') {
@@ -233,9 +230,13 @@ function initializeProject() {
         projectConfig.name = projectNameInput.value || 'Meine Karten';
     });
 
-    // Actual card count selection
+    // Actual card count selection (number input)
     actualCardCountSelect.addEventListener('change', () => {
-        projectConfig.actualCardCount = parseInt(actualCardCountSelect.value);
+        const val = parseInt(actualCardCountSelect.value);
+        if (val && val > 0) {
+            projectConfig.actualCardCount = val;
+        }
+        updatePageInfo();
         updateCardContentsForNewGrid();
         
         // If we're currently on the content or export tab, update those as well
@@ -351,32 +352,24 @@ function updateGridFromInput(gridValue) {
 }
 
 function updateActualCardCountOptions() {
-    const select = document.getElementById('actualCardCount');
-    const currentValue = projectConfig.actualCardCount; // Aktuellen Wert speichern
-    select.innerHTML = '';
+    const input = document.getElementById('actualCardCount');
+    input.value = projectConfig.actualCardCount;
+    updatePageInfo();
+}
+
+function updatePageInfo() {
+    const cardsPerPage = projectConfig.maxCardCount;
+    const totalCards = projectConfig.actualCardCount;
+    const pagesNeeded = Math.ceil(totalCards / cardsPerPage);
     
-    // Add options from 1 to maxCardCount
-    for (let i = 1; i <= projectConfig.maxCardCount; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = i + ' Karten';
-        if (i === projectConfig.maxCardCount) {
-            option.textContent += ' (alle)';
+    const pageInfoEl = document.getElementById('pageInfo');
+    if (pageInfoEl) {
+        if (pagesNeeded > 1) {
+            pageInfoEl.textContent = `\u2192 ${cardsPerPage} Karten pro Seite, ${pagesNeeded} Seiten ben\u00f6tigt`;
+        } else {
+            pageInfoEl.textContent = `\u2192 ${totalCards} von ${cardsPerPage} Pl\u00e4tzen auf einer Seite belegt`;
         }
-        // Setze den aktuellen Wert als selected, oder Maximum falls der aktuelle Wert zu groß ist
-        if (i === currentValue || (currentValue > projectConfig.maxCardCount && i === projectConfig.maxCardCount)) {
-            option.selected = true;
-        }
-        select.appendChild(option);
     }
-    
-    // Stelle sicher, dass actualCardCount nicht größer als maxCardCount ist
-    if (projectConfig.actualCardCount > projectConfig.maxCardCount) {
-        projectConfig.actualCardCount = projectConfig.maxCardCount;
-    }
-    
-    // Aktualisiere das Dropdown-Element, um den korrekten Wert anzuzeigen
-    select.value = projectConfig.actualCardCount;
 }
 
 function updateCardContentsForNewGrid() {
@@ -549,10 +542,11 @@ function updateCardPreviewDimensions() {
 function saveProjectConfig() {
     projectConfig.name = document.getElementById('projectName').value || 'Meine Karten';
     
-    // Speichere den aktuellen actualCardCount Wert aus dem Dropdown
-    const actualCardCountSelect = document.getElementById('actualCardCount');
-    if (actualCardCountSelect.value) {
-        projectConfig.actualCardCount = parseInt(actualCardCountSelect.value);
+    // Speichere den aktuellen actualCardCount Wert
+    const actualCardCountInput = document.getElementById('actualCardCount');
+    const val = parseInt(actualCardCountInput.value);
+    if (val && val > 0) {
+        projectConfig.actualCardCount = val;
     }
     
     updateGridFromInput(document.getElementById('gridInput').value);
@@ -626,6 +620,46 @@ function initializeDesign() {
             masterCard[currentSide].watermarkPosition = btn.getAttribute('data-position');
             updateCardPreview();
         });
+    });
+
+    // Watermark image
+    const watermarkImageInput = document.getElementById('watermarkImage');
+    const watermarkImageSize = document.getElementById('watermarkImageSize');
+    const watermarkImageSizeValue = document.getElementById('watermarkImageSizeValue');
+    const watermarkImageOpacity = document.getElementById('watermarkImageOpacity');
+    const watermarkImageOpacityValue = document.getElementById('watermarkImageOpacityValue');
+    const removeWatermarkImageBtn = document.getElementById('removeWatermarkImage');
+
+    watermarkImageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                masterCard[currentSide].watermarkImage = ev.target.result;
+                updateWatermarkImageControls();
+                updateCardPreview();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    watermarkImageSize.addEventListener('input', () => {
+        masterCard[currentSide].watermarkImageSize = parseInt(watermarkImageSize.value);
+        watermarkImageSizeValue.textContent = watermarkImageSize.value + 'px';
+        updateCardPreview();
+    });
+
+    watermarkImageOpacity.addEventListener('input', () => {
+        masterCard[currentSide].watermarkImageOpacity = parseInt(watermarkImageOpacity.value);
+        watermarkImageOpacityValue.textContent = watermarkImageOpacity.value + '%';
+        updateCardPreview();
+    });
+
+    removeWatermarkImageBtn.addEventListener('click', () => {
+        masterCard[currentSide].watermarkImage = null;
+        document.getElementById('watermarkImage').value = '';
+        updateWatermarkImageControls();
+        updateCardPreview();
     });
 
     // Border style buttons
@@ -721,6 +755,32 @@ function updateFormControls() {
     updateColorDisplay('borderColor', currentCardSide.borderColor);
     updateActivePresetForColor('backgroundColor', currentCardSide.backgroundColor);
     updateActivePresetForColor('borderColor', currentCardSide.borderColor);
+
+    // Update watermark image controls
+    updateWatermarkImageControls();
+}
+
+function updateWatermarkImageControls() {
+    const currentCardSide = masterCard[currentSide];
+    const hasImage = !!currentCardSide.watermarkImage;
+    document.getElementById('watermarkImagePreviewGroup').style.display = hasImage ? 'block' : 'none';
+    document.getElementById('watermarkImageSizeGroup').style.display = hasImage ? 'block' : 'none';
+    document.getElementById('watermarkImageOpacityGroup').style.display = hasImage ? 'block' : 'none';
+
+    if (hasImage) {
+        const previewEl = document.getElementById('watermarkImagePreview');
+        previewEl.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = currentCardSide.watermarkImage;
+        img.style.maxWidth = '60px';
+        img.style.maxHeight = '60px';
+        previewEl.appendChild(img);
+    }
+
+    document.getElementById('watermarkImageSize').value = currentCardSide.watermarkImageSize || 30;
+    document.getElementById('watermarkImageSizeValue').textContent = (currentCardSide.watermarkImageSize || 30) + 'px';
+    document.getElementById('watermarkImageOpacity').value = currentCardSide.watermarkImageOpacity || 30;
+    document.getElementById('watermarkImageOpacityValue').textContent = (currentCardSide.watermarkImageOpacity || 30) + '%';
 }
 
 function addTextbox() {
@@ -1234,6 +1294,53 @@ function updateCardPreview() {
         
         card.appendChild(watermark);
     }
+
+    // Add watermark image
+    if (currentCardSide.watermarkImage) {
+        const wmImgEl = document.createElement('div');
+        wmImgEl.style.position = 'absolute';
+        wmImgEl.style.pointerEvents = 'none';
+        wmImgEl.style.zIndex = '1';
+        
+        const wmImg = document.createElement('img');
+        wmImg.src = currentCardSide.watermarkImage;
+        wmImg.style.width = (currentCardSide.watermarkImageSize || 30) + 'px';
+        wmImg.style.height = 'auto';
+        wmImg.style.opacity = (currentCardSide.watermarkImageOpacity || 30) / 100;
+        wmImg.style.display = 'block';
+        wmImgEl.appendChild(wmImg);
+        
+        const wmPos = currentCardSide.watermarkPosition || 'bottom-right';
+        wmImgEl.style.top = 'auto';
+        wmImgEl.style.bottom = 'auto';
+        wmImgEl.style.left = 'auto';
+        wmImgEl.style.right = 'auto';
+        wmImgEl.style.transform = 'none';
+        
+        switch (wmPos) {
+            case 'top-left':
+                wmImgEl.style.top = '5px'; wmImgEl.style.left = '5px'; break;
+            case 'top-center':
+                wmImgEl.style.top = '5px'; wmImgEl.style.left = '50%'; wmImgEl.style.transform = 'translateX(-50%)'; break;
+            case 'top-right':
+                wmImgEl.style.top = '5px'; wmImgEl.style.right = '5px'; break;
+            case 'middle-left':
+                wmImgEl.style.top = '50%'; wmImgEl.style.left = '5px'; wmImgEl.style.transform = 'translateY(-50%)'; break;
+            case 'center':
+                wmImgEl.style.top = '50%'; wmImgEl.style.left = '50%'; wmImgEl.style.transform = 'translate(-50%, -50%)'; break;
+            case 'middle-right':
+                wmImgEl.style.top = '50%'; wmImgEl.style.right = '5px'; wmImgEl.style.transform = 'translateY(-50%)'; break;
+            case 'bottom-left':
+                wmImgEl.style.bottom = '5px'; wmImgEl.style.left = '5px'; break;
+            case 'bottom-center':
+                wmImgEl.style.bottom = '5px'; wmImgEl.style.left = '50%'; wmImgEl.style.transform = 'translateX(-50%)'; break;
+            case 'bottom-right':
+            default:
+                wmImgEl.style.bottom = '5px'; wmImgEl.style.right = '5px'; break;
+        }
+        
+        card.appendChild(wmImgEl);
+    }
 }
 
 function addResizeHandle(element, type, index) {
@@ -1718,102 +1825,97 @@ function generatePDFPreview() {
         (masterCard.back.borderWidth !== masterCard.front.borderWidth) ||
         (masterCard.back.borderColor !== masterCard.front.borderColor) ||
         (masterCard.back.borderStyle !== masterCard.front.borderStyle) ||
-        (masterCard.back.watermark !== masterCard.front.watermark)
+        (masterCard.back.watermark !== masterCard.front.watermark) ||
+        (masterCard.back.watermarkImage !== masterCard.front.watermarkImage)
     );
 
-    // Create container for front page
-    const frontPageContainer = document.createElement('div');
-    frontPageContainer.style.marginBottom = '20px';
-    
-    const frontTitle = document.createElement('h4');
-    frontTitle.textContent = 'Vorderseiten';
-    frontTitle.style.textAlign = 'center';
-    frontTitle.style.color = 'white';
-    frontTitle.style.margin = '0 0 10px 0';
-    frontPageContainer.appendChild(frontTitle);
+    const cardsPerPage = projectConfig.maxCardCount;
+    const totalCards = projectConfig.actualCardCount;
+    const pagesNeeded = Math.ceil(totalCards / cardsPerPage);
 
-    // Create front sides page
-    const frontPage = document.createElement('div');
-    frontPage.className = 'pdf-page';
-    frontPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
-    frontPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
+    for (let page = 0; page < pagesNeeded; page++) {
+        const startCard = page * cardsPerPage;
+        const endCard = Math.min(startCard + cardsPerPage, totalCards);
 
-    // Ensure we have the right number of cards
-    const totalCards = projectConfig.maxCardCount;  // Show full grid
-    const actualCards = projectConfig.actualCardCount;  // Only fill up to actual count
-    for (let i = 0; i < totalCards; i++) {
-        if (i < actualCards && i < cardContents.length) {
-            const frontCard = createPDFCard(cardContents[i], i, 'front');
-            frontPage.appendChild(frontCard);
-        } else {
-            // Create empty placeholder card
-            const emptyCard = document.createElement('div');
-            emptyCard.className = 'pdf-card';
-            emptyCard.style.backgroundColor = '#f5f5f5';
-            emptyCard.style.border = '1px dashed #ccc';
-            emptyCard.style.display = 'flex';
-            emptyCard.style.alignItems = 'center';
-            emptyCard.style.justifyContent = 'center';
-            emptyCard.style.color = '#999';
-            emptyCard.style.fontSize = '10px';
-            if (i >= actualCards) {
-                emptyCard.textContent = '(nicht verwendet)';
-            } else {
-                emptyCard.textContent = '(leer)';
-            }
-            frontPage.appendChild(emptyCard);
-        }
-    }
-
-    frontPageContainer.appendChild(frontPage);
-    preview.appendChild(frontPageContainer);
-
-    // Create back sides page only if there's back content
-    if (hasBackContent) {
-        const backPageContainer = document.createElement('div');
-        backPageContainer.style.marginBottom = '20px';
+        // Front page
+        const frontPageContainer = document.createElement('div');
+        frontPageContainer.style.marginBottom = '20px';
         
-        const backTitle = document.createElement('h4');
-        backTitle.textContent = 'Rückseiten';
-        backTitle.style.textAlign = 'center';
-        backTitle.style.color = 'white';
-        backTitle.style.margin = '0 0 10px 0';
-        backPageContainer.appendChild(backTitle);
+        const frontTitle = document.createElement('h4');
+        frontTitle.textContent = pagesNeeded > 1 ? `Vorderseiten (Seite ${page + 1})` : 'Vorderseiten';
+        frontTitle.style.textAlign = 'center';
+        frontTitle.style.color = 'white';
+        frontTitle.style.margin = '0 0 10px 0';
+        frontPageContainer.appendChild(frontTitle);
 
-        const backPage = document.createElement('div');
-        backPage.className = 'pdf-page';
-        backPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
-        backPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
+        const frontPage = document.createElement('div');
+        frontPage.className = 'pdf-page';
+        frontPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
+        frontPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
 
-        // Same order as front sides (no reversal needed, printer handles alignment)
-        for (let i = 0; i < totalCards; i++) {
-            if (i < actualCards && i < cardContents.length) {
-                const backCard = createPDFCard(cardContents[i], i, 'back');
-                // No mirroring - printer will handle proper alignment
-                backPage.appendChild(backCard);
+        for (let i = 0; i < cardsPerPage; i++) {
+            const cardIndex = startCard + i;
+            if (cardIndex < endCard && cardIndex < cardContents.length) {
+                const frontCard = createPDFCard(cardContents[cardIndex], cardIndex, 'front');
+                frontPage.appendChild(frontCard);
             } else {
-                // Create empty placeholder card
                 const emptyCard = document.createElement('div');
                 emptyCard.className = 'pdf-card';
                 emptyCard.style.backgroundColor = '#f5f5f5';
                 emptyCard.style.border = '1px dashed #ccc';
-                // No mirroring for empty cards either
                 emptyCard.style.display = 'flex';
                 emptyCard.style.alignItems = 'center';
                 emptyCard.style.justifyContent = 'center';
                 emptyCard.style.color = '#999';
                 emptyCard.style.fontSize = '10px';
-                if (i >= actualCards) {
-                    emptyCard.textContent = '(nicht verwendet)';
-                } else {
-                    emptyCard.textContent = '(leer)';
-                }
-                backPage.appendChild(emptyCard);
+                emptyCard.textContent = cardIndex >= totalCards ? '(nicht verwendet)' : '(leer)';
+                frontPage.appendChild(emptyCard);
             }
         }
 
-        backPageContainer.appendChild(backPage);
-        preview.appendChild(backPageContainer);
+        frontPageContainer.appendChild(frontPage);
+        preview.appendChild(frontPageContainer);
+
+        // Back page if needed
+        if (hasBackContent) {
+            const backPageContainer = document.createElement('div');
+            backPageContainer.style.marginBottom = '20px';
+            
+            const backTitle = document.createElement('h4');
+            backTitle.textContent = pagesNeeded > 1 ? `Rückseiten (Seite ${page + 1})` : 'Rückseiten';
+            backTitle.style.textAlign = 'center';
+            backTitle.style.color = 'white';
+            backTitle.style.margin = '0 0 10px 0';
+            backPageContainer.appendChild(backTitle);
+
+            const backPage = document.createElement('div');
+            backPage.className = 'pdf-page';
+            backPage.style.gridTemplateColumns = `repeat(${projectConfig.grid.width}, 1fr)`;
+            backPage.style.gridTemplateRows = `repeat(${projectConfig.grid.height}, 1fr)`;
+
+            for (let i = 0; i < cardsPerPage; i++) {
+                const cardIndex = startCard + i;
+                if (cardIndex < endCard && cardIndex < cardContents.length) {
+                    const backCard = createPDFCard(cardContents[cardIndex], cardIndex, 'back');
+                    backPage.appendChild(backCard);
+                } else {
+                    const emptyCard = document.createElement('div');
+                    emptyCard.className = 'pdf-card';
+                    emptyCard.style.backgroundColor = '#f5f5f5';
+                    emptyCard.style.border = '1px dashed #ccc';
+                    emptyCard.style.display = 'flex';
+                    emptyCard.style.alignItems = 'center';
+                    emptyCard.style.justifyContent = 'center';
+                    emptyCard.style.color = '#999';
+                    emptyCard.style.fontSize = '10px';
+                    emptyCard.textContent = cardIndex >= totalCards ? '(nicht verwendet)' : '(leer)';
+                    backPage.appendChild(emptyCard);
+                }
+            }
+
+            backPageContainer.appendChild(backPage);
+            preview.appendChild(backPageContainer);
+        }
     }
 }
 
@@ -1951,6 +2053,43 @@ function createPDFCard(cardContent, cardIndex, side) {
         }
         
         card.appendChild(watermark);
+    }
+
+    // Add watermark image
+    if (cardSideData.watermarkImage) {
+        const wmImgEl = document.createElement('div');
+        wmImgEl.style.position = 'absolute';
+        wmImgEl.style.pointerEvents = 'none';
+        wmImgEl.style.zIndex = '1';
+        
+        const wmImg = document.createElement('img');
+        wmImg.src = cardSideData.watermarkImage;
+        wmImg.style.width = ((cardSideData.watermarkImageSize || 30) * 0.5) + 'px';
+        wmImg.style.height = 'auto';
+        wmImg.style.opacity = (cardSideData.watermarkImageOpacity || 30) / 100;
+        wmImg.style.display = 'block';
+        wmImgEl.appendChild(wmImg);
+        
+        const wmImgPos = cardSideData.watermarkPosition || 'bottom-right';
+        wmImgEl.style.top = 'auto';
+        wmImgEl.style.bottom = 'auto';
+        wmImgEl.style.left = 'auto';
+        wmImgEl.style.right = 'auto';
+        wmImgEl.style.transform = 'none';
+        
+        switch (wmImgPos) {
+            case 'top-left': wmImgEl.style.top = '2px'; wmImgEl.style.left = '2px'; break;
+            case 'top-center': wmImgEl.style.top = '2px'; wmImgEl.style.left = '50%'; wmImgEl.style.transform = 'translateX(-50%)'; break;
+            case 'top-right': wmImgEl.style.top = '2px'; wmImgEl.style.right = '2px'; break;
+            case 'middle-left': wmImgEl.style.top = '50%'; wmImgEl.style.left = '2px'; wmImgEl.style.transform = 'translateY(-50%)'; break;
+            case 'center': wmImgEl.style.top = '50%'; wmImgEl.style.left = '50%'; wmImgEl.style.transform = 'translate(-50%, -50%)'; break;
+            case 'middle-right': wmImgEl.style.top = '50%'; wmImgEl.style.right = '2px'; wmImgEl.style.transform = 'translateY(-50%)'; break;
+            case 'bottom-left': wmImgEl.style.bottom = '2px'; wmImgEl.style.left = '2px'; break;
+            case 'bottom-center': wmImgEl.style.bottom = '2px'; wmImgEl.style.left = '50%'; wmImgEl.style.transform = 'translateX(-50%)'; break;
+            case 'bottom-right': default: wmImgEl.style.bottom = '2px'; wmImgEl.style.right = '2px'; break;
+        }
+        
+        card.appendChild(wmImgEl);
     }
 
     return card;
@@ -2097,65 +2236,12 @@ async function generatePDF() {
         pdf.text(wmText, wmX, wmY);
     }
 
-    // Create cards for front side
+    // Multi-page support
+    const cardsPerPage = projectConfig.maxCardCount;
     const totalCards = projectConfig.actualCardCount;
-    for (let i = 0; i < totalCards; i++) {
-        const row = Math.floor(i / projectConfig.grid.width);
-        const col = i % projectConfig.grid.width;
-        
-        const x = margin + (col * cardWidth);
-        const y = margin + (row * cardHeight);
+    const pagesNeeded = Math.ceil(totalCards / cardsPerPage);
 
-        const currentSideData = masterCard.front;
-
-        // Draw card background
-        pdf.setFillColor(currentSideData.backgroundColor);
-        pdf.rect(x, y, cardWidth, cardHeight, 'F');
-
-        // Draw border with style
-        drawStyledBorder(x, y, cardWidth, cardHeight, currentSideData.borderWidth, currentSideData.borderColor, currentSideData.borderStyle || 'solid');
-
-        // Add textboxes
-        if (currentSideData.textboxes && i < cardContents.length) {
-            currentSideData.textboxes.forEach((textbox, textboxIndex) => {
-                const content = cardContents[i].front?.textboxes?.[textboxIndex] || textbox.text;
-                
-                const textX = x + (textbox.x * cardWidth / 200);
-                const textY = y + (textbox.y * cardHeight / 280) + (textbox.fontSize * 0.1);
-                
-                pdf.setFontSize(textbox.fontSize * 0.3);
-                pdf.setTextColor(textbox.fontColor);
-                
-                const maxWidth = (textbox.width * cardWidth / 200);
-                const lines = pdf.splitTextToSize(content, maxWidth);
-                
-                pdf.text(lines, textX, textY);
-            });
-        }
-
-        // Add images (with SVG support)
-        if (currentSideData.imageboxes && i < cardContents.length) {
-            for (const [imageboxIndex, imagebox] of currentSideData.imageboxes.entries()) {
-                const imageData = cardContents[i].front?.imageboxes?.[imageboxIndex];
-                
-                if (imageData && imageData.src) {
-                    const imgX = x + (imagebox.x * cardWidth / 200);
-                    const imgY = y + (imagebox.y * cardHeight / 280);
-                    const imgWidth = imagebox.width * cardWidth / 200;
-                    const imgHeight = imagebox.height * cardHeight / 280;
-                    
-                    await addImageToPdf(imageData.src, imgX, imgY, imgWidth, imgHeight);
-                }
-            }
-        }
-
-        // Add watermark
-        if (currentSideData.watermark) {
-            addWatermarkToPdf(currentSideData.watermark, currentSideData.watermarkSize, currentSideData.watermarkPosition, x, y, cardWidth, cardHeight);
-        }
-    }
-
-    // Add new page for back side if it has content or design differences
+    // Check if we have back side content or design differences
     const hasBackContent = masterCard.back && (
         (masterCard.back.textboxes && masterCard.back.textboxes.length > 0) ||
         (masterCard.back.imageboxes && masterCard.back.imageboxes.length > 0) ||
@@ -2163,32 +2249,33 @@ async function generatePDF() {
         (masterCard.back.borderWidth !== masterCard.front.borderWidth) ||
         (masterCard.back.borderColor !== masterCard.front.borderColor) ||
         (masterCard.back.borderStyle !== masterCard.front.borderStyle) ||
-        (masterCard.back.watermark !== masterCard.front.watermark)
+        (masterCard.back.watermark !== masterCard.front.watermark) ||
+        (masterCard.back.watermarkImage !== masterCard.front.watermarkImage)
     );
 
-    if (hasBackContent) {
-        pdf.addPage();
+    // Helper to render one side of cards on a PDF page
+    async function renderPageSide(side, startIdx, endIdx) {
+        const sideData = masterCard[side];
         
-        for (let i = 0; i < totalCards; i++) {
-            const row = Math.floor(i / projectConfig.grid.width);
-            const col = i % projectConfig.grid.width;
+        for (let i = startIdx; i < endIdx; i++) {
+            const localIndex = i - startIdx;
+            const row = Math.floor(localIndex / projectConfig.grid.width);
+            const col = localIndex % projectConfig.grid.width;
             
             const x = margin + (col * cardWidth);
             const y = margin + (row * cardHeight);
 
-            const currentSideData = masterCard.back;
-
             // Draw card background
-            pdf.setFillColor(currentSideData.backgroundColor);
+            pdf.setFillColor(sideData.backgroundColor);
             pdf.rect(x, y, cardWidth, cardHeight, 'F');
 
             // Draw border with style
-            drawStyledBorder(x, y, cardWidth, cardHeight, currentSideData.borderWidth, currentSideData.borderColor, currentSideData.borderStyle || 'solid');
+            drawStyledBorder(x, y, cardWidth, cardHeight, sideData.borderWidth, sideData.borderColor, sideData.borderStyle || 'solid');
 
             // Add textboxes
-            if (currentSideData.textboxes && i < cardContents.length) {
-                currentSideData.textboxes.forEach((textbox, textboxIndex) => {
-                    const content = cardContents[i].back?.textboxes?.[textboxIndex] || textbox.text;
+            if (sideData.textboxes && i < cardContents.length) {
+                sideData.textboxes.forEach((textbox, textboxIndex) => {
+                    const content = cardContents[i][side]?.textboxes?.[textboxIndex] || textbox.text;
                     
                     const textX = x + (textbox.x * cardWidth / 200);
                     const textY = y + (textbox.y * cardHeight / 280) + (textbox.fontSize * 0.1);
@@ -2204,9 +2291,9 @@ async function generatePDF() {
             }
 
             // Add images (with SVG support)
-            if (currentSideData.imageboxes && i < cardContents.length) {
-                for (const [imageboxIndex, imagebox] of currentSideData.imageboxes.entries()) {
-                    const imageData = cardContents[i].back?.imageboxes?.[imageboxIndex];
+            if (sideData.imageboxes && i < cardContents.length) {
+                for (const [imageboxIndex, imagebox] of sideData.imageboxes.entries()) {
+                    const imageData = cardContents[i][side]?.imageboxes?.[imageboxIndex];
                     
                     if (imageData && imageData.src) {
                         const imgX = x + (imagebox.x * cardWidth / 200);
@@ -2219,10 +2306,57 @@ async function generatePDF() {
                 }
             }
 
-            // Add watermark
-            if (currentSideData.watermark) {
-                addWatermarkToPdf(currentSideData.watermark, currentSideData.watermarkSize, currentSideData.watermarkPosition, x, y, cardWidth, cardHeight);
+            // Add watermark text
+            if (sideData.watermark) {
+                addWatermarkToPdf(sideData.watermark, sideData.watermarkSize, sideData.watermarkPosition, x, y, cardWidth, cardHeight);
             }
+
+            // Add watermark image
+            if (sideData.watermarkImage) {
+                const wmImgSize = (sideData.watermarkImageSize || 30) * cardWidth / 200;
+                const wmPos = sideData.watermarkPosition || 'bottom-right';
+                const wmOpacity = (sideData.watermarkImageOpacity || 30) / 100;
+                
+                let wmX, wmY;
+                switch (wmPos) {
+                    case 'top-left': wmX = x + 1; wmY = y + 1; break;
+                    case 'top-center': wmX = x + (cardWidth - wmImgSize) / 2; wmY = y + 1; break;
+                    case 'top-right': wmX = x + cardWidth - wmImgSize - 1; wmY = y + 1; break;
+                    case 'middle-left': wmX = x + 1; wmY = y + (cardHeight - wmImgSize) / 2; break;
+                    case 'center': wmX = x + (cardWidth - wmImgSize) / 2; wmY = y + (cardHeight - wmImgSize) / 2; break;
+                    case 'middle-right': wmX = x + cardWidth - wmImgSize - 1; wmY = y + (cardHeight - wmImgSize) / 2; break;
+                    case 'bottom-left': wmX = x + 1; wmY = y + cardHeight - wmImgSize - 1; break;
+                    case 'bottom-center': wmX = x + (cardWidth - wmImgSize) / 2; wmY = y + cardHeight - wmImgSize - 1; break;
+                    case 'bottom-right': default: wmX = x + cardWidth - wmImgSize - 1; wmY = y + cardHeight - wmImgSize - 1; break;
+                }
+                
+                try {
+                    pdf.saveGraphicsState();
+                    pdf.setGState(new pdf.GState({ opacity: wmOpacity }));
+                    await addImageToPdf(sideData.watermarkImage, wmX, wmY, wmImgSize, wmImgSize);
+                    pdf.restoreGraphicsState();
+                } catch(e) {
+                    await addImageToPdf(sideData.watermarkImage, wmX, wmY, wmImgSize, wmImgSize);
+                }
+            }
+        }
+    }
+
+    // Render pages (interleaved: front, back, front, back, ...)
+    let isFirstPage = true;
+    for (let page = 0; page < pagesNeeded; page++) {
+        const startCard = page * cardsPerPage;
+        const endCard = Math.min(startCard + cardsPerPage, totalCards);
+        
+        // Front page
+        if (!isFirstPage) pdf.addPage();
+        isFirstPage = false;
+        await renderPageSide('front', startCard, endCard);
+
+        // Back page
+        if (hasBackContent) {
+            pdf.addPage();
+            await renderPageSide('back', startCard, endCard);
         }
     }
 
@@ -2236,7 +2370,8 @@ function resetApp() {
     projectConfig = {
         name: 'Meine Karten',
         grid: { width: 3, height: 3 },
-        cardCount: 9
+        maxCardCount: 9,
+        actualCardCount: 9
     };
     
     masterCard = {
@@ -2248,6 +2383,9 @@ function resetApp() {
             watermark: '',
             watermarkSize: 12,
             watermarkPosition: 'bottom-right',
+            watermarkImage: null,
+            watermarkImageSize: 30,
+            watermarkImageOpacity: 30,
             textboxes: [],
             imageboxes: []
         },
@@ -2259,6 +2397,9 @@ function resetApp() {
             watermark: '',
             watermarkSize: 12,
             watermarkPosition: 'bottom-right',
+            watermarkImage: null,
+            watermarkImageSize: 30,
+            watermarkImageOpacity: 30,
             textboxes: [],
             imageboxes: []
         }
@@ -2271,6 +2412,101 @@ function resetApp() {
     
     switchTab('project');
     updateGridPreview();
+}
+
+// Save/Load JSON functions
+function saveProjectAsJSON() {
+    const projectData = {
+        version: 1,
+        projectConfig: projectConfig,
+        masterCard: masterCard,
+        cardContents: cardContents,
+        textboxCounter: textboxCounter,
+        imageboxCounter: imageboxCounter
+    };
+    
+    const json = JSON.stringify(projectData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (projectConfig.name || 'project').replace(/[^a-zA-Z0-9\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df]/g, '_') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function loadProjectFromJSON() {
+    document.getElementById('jsonFileInput').click();
+}
+
+function handleJSONFileLoad(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            // Restore state
+            if (data.projectConfig) {
+                projectConfig = data.projectConfig;
+                // Ensure required fields exist
+                if (!projectConfig.maxCardCount) {
+                    projectConfig.maxCardCount = projectConfig.grid.width * projectConfig.grid.height;
+                }
+                if (!projectConfig.actualCardCount) {
+                    projectConfig.actualCardCount = projectConfig.maxCardCount;
+                }
+            }
+            if (data.masterCard) {
+                masterCard = data.masterCard;
+                // Ensure watermarkImage fields exist
+                ['front', 'back'].forEach(side => {
+                    if (masterCard[side].watermarkImage === undefined) masterCard[side].watermarkImage = null;
+                    if (masterCard[side].watermarkImageSize === undefined) masterCard[side].watermarkImageSize = 30;
+                    if (masterCard[side].watermarkImageOpacity === undefined) masterCard[side].watermarkImageOpacity = 30;
+                });
+            }
+            if (data.cardContents) {
+                cardContents = data.cardContents;
+            }
+            if (data.textboxCounter !== undefined) {
+                textboxCounter = data.textboxCounter;
+            }
+            if (data.imageboxCounter !== undefined) {
+                imageboxCounter = data.imageboxCounter;
+            }
+            
+            // Update UI
+            document.getElementById('projectName').value = projectConfig.name;
+            document.getElementById('gridInput').value = `${projectConfig.grid.width}x${projectConfig.grid.height}`;
+            document.getElementById('gridWidth').value = projectConfig.grid.width;
+            document.getElementById('gridHeight').value = projectConfig.grid.height;
+            document.getElementById('gridWidthSlider').value = projectConfig.grid.width;
+            document.getElementById('gridHeightSlider').value = projectConfig.grid.height;
+            document.getElementById('gridWidthValue').textContent = projectConfig.grid.width;
+            document.getElementById('gridHeightValue').textContent = projectConfig.grid.height;
+            document.getElementById('actualCardCount').value = projectConfig.actualCardCount;
+            
+            updateGridPreview();
+            updatePageInfo();
+            updateFormControls();
+            updateElementLists();
+            updateCardPreview();
+            updateWatermarkImageControls();
+            
+            alert('Projekt erfolgreich geladen!');
+        } catch (error) {
+            alert('Fehler beim Laden der Datei: ' + error.message);
+        }
+    };
+    reader.readAsText(file);
+    
+    // Reset file input for re-loading
+    event.target.value = '';
 }
 
 // Make functions global for HTML onclick handlers
@@ -2295,3 +2531,6 @@ window.updateCardContent = updateCardContent;
 window.updateCardImageContent = updateCardImageContent;
 window.toggleBulkPaste = toggleBulkPaste;
 window.applyBulkPaste = applyBulkPaste;
+window.saveProjectAsJSON = saveProjectAsJSON;
+window.loadProjectFromJSON = loadProjectFromJSON;
+window.handleJSONFileLoad = handleJSONFileLoad;

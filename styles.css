@@ -784,7 +784,10 @@ header p {
     position: absolute;
     font-size: 8px;
     word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 /* Buttons */

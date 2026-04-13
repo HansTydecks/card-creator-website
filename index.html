@@ -14,6 +14,11 @@
         <header>
             <h1>Card Creator</h1>
             <p>Erstellen Sie schnell und einfach Karteikarten</p>
+            <div class="project-actions" style="margin-top: 8px; display: flex; gap: 8px; justify-content: center;">
+                <button class="btn btn-secondary btn-small" onclick="saveProjectAsJSON()">💾 Projekt speichern</button>
+                <button class="btn btn-secondary btn-small" onclick="loadProjectFromJSON()">📂 Projekt laden</button>
+                <input type="file" id="jsonFileInput" accept=".json" style="display:none" onchange="handleJSONFileLoad(event)">
+            </div>
         </header>
 
         <!-- Tab Navigation -->
@@ -101,11 +106,10 @@
 
             <!-- Card Count Selection -->
             <div class="form-group">
-                <label for="actualCardCount">Tatsächliche Kartenanzahl:</label>
-                <select id="actualCardCount">
-                    <!-- Options will be populated dynamically based on grid -->
-                </select>
-                <small class="form-help">Wählen Sie weniger Karten, wenn Sie nicht das ganze Grid benötigen. Die Kartengröße bleibt gleich.</small>
+                <label for="actualCardCount">Gesamtanzahl Karten:</label>
+                <input type="number" id="actualCardCount" min="1" value="9">
+                <small class="form-help">Die Kartengröße wird durch das Grid bestimmt. Bei mehr Karten als auf eine Seite passen, werden automatisch mehrere PDF-Seiten erstellt.</small>
+                <div id="pageInfo" class="page-info" style="margin-top: 4px; font-size: 12px; color: #5ce0e5;"></div>
             </div>
 
             <button id="nextToDesign" class="btn btn-primary">Weiter zum Master Design</button>
@@ -209,6 +213,26 @@
                             <button class="wm-pos-btn" data-position="bottom-center" title="Unten Mitte">↓</button>
                             <button class="wm-pos-btn active" data-position="bottom-right" title="Unten rechts">↘</button>
                         </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="watermarkImage">Wasserzeichen Bild:</label>
+                        <input type="file" id="watermarkImage" accept="image/jpeg,image/png,image/svg+xml">
+                        <small class="form-help">JPEG, PNG oder SVG. Wird auf allen Karten angezeigt.</small>
+                    </div>
+                    <div class="form-group" id="watermarkImagePreviewGroup" style="display: none;">
+                        <div id="watermarkImagePreview" style="max-width: 60px; max-height: 60px; margin-bottom: 4px;"></div>
+                        <button type="button" id="removeWatermarkImage" class="btn btn-danger btn-small">Bild entfernen</button>
+                    </div>
+                    <div class="form-group" id="watermarkImageSizeGroup" style="display: none;">
+                        <label for="watermarkImageSize">Wasserzeichen Bild Größe:</label>
+                        <input type="range" id="watermarkImageSize" min="10" max="100" value="30">
+                        <span id="watermarkImageSizeValue">30px</span>
+                    </div>
+                    <div class="form-group" id="watermarkImageOpacityGroup" style="display: none;">
+                        <label for="watermarkImageOpacity">Wasserzeichen Bild Transparenz:</label>
+                        <input type="range" id="watermarkImageOpacity" min="5" max="100" value="30">
+                        <span id="watermarkImageOpacityValue">30%</span>
                     </div>
 
                     <div class="textbox-controls">

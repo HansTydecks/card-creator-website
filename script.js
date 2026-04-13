@@ -231,7 +231,8 @@ function initializeProject() {
     });
 
     // Actual card count selection (number input)
-    actualCardCountSelect.addEventListener('change', () => {
+    // Use 'input' event for immediate sync (fires on typing and spinner arrows)
+    const updateActualCardCount = () => {
         const val = parseInt(actualCardCountSelect.value);
         if (val && val > 0) {
             projectConfig.actualCardCount = val;
@@ -248,7 +249,9 @@ function initializeProject() {
                 generatePDFPreview();
             }
         }
-    });
+    };
+    actualCardCountSelect.addEventListener('input', updateActualCardCount);
+    actualCardCountSelect.addEventListener('change', updateActualCardCount);
 
     // Grid presets
     gridPresets.forEach(preset => {
@@ -1500,6 +1503,9 @@ function generateContentInputs() {
             };
             cardContents.push(newCard);
         }
+        // Update existing cards to match current master design structure
+        // (e.g. when imageboxes were added to the back side after cards were created)
+        updateCardContentsStructure();
     }
 
     // Add bulk paste section at the top for each textbox

@@ -2,10 +2,9 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'node:path';
 
-// Project is deployed as a GitHub Pages *project* site
-// (https://hanstydecks.github.io/card-creator/), so all asset URLs need
-// this prefix. Override with VITE_BASE=/ for local dev at the domain root.
-const BASE = process.env.VITE_BASE ?? '/card-creator/';
+// Deployed via GitHub Pages under a custom domain (ccreator.tinfo.space,
+// see public/CNAME), so it's served from the domain root, not a subpath.
+const BASE = process.env.VITE_BASE ?? '/';
 
 export default defineConfig({
   base: BASE,

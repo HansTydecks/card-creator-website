@@ -22,7 +22,7 @@ export function mountFooter(root: ParentNode = document): void {
           [
             createEl(
               "a",
-              { href: "https://github.com/HansTydecks/card-creator", target: "_blank", rel: "noopener noreferrer" },
+              { href: "https://github.com/HansTydecks/card-creator-website", target: "_blank", rel: "noopener noreferrer" },
               ["GitHub"],
             ),
           ],

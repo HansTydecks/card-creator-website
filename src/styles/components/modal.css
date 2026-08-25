@@ -1,0 +1,32 @@
+dialog.modal {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  max-width: 480px;
+  width: calc(100% - var(--space-6));
+  max-height: min(600px, 90vh);
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+dialog.modal::backdrop {
+  background: var(--color-overlay);
+}
+
+.modal__title {
+  margin-top: 0;
+  font-size: var(--text-lg);
+}
+
+.modal__body {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-5);
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
